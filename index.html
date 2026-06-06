@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic vs Keyword Search — Interactive Presentation</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            obsidian: {
+              50: '#f4f5fb', 100: '#e7e9f6', 200: '#d0d4ee',
+              500: '#6366f1', 600: '#5b5bd6', 700: '#4f46b8',
+              900: '#1e1b4b', 950: '#0f0d2e'
+            }
+          },
+          keyframes: {
+            scanIn: {
+              '0%':   { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
+              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
+            },
+            slideIn: {
+              '0%':   { opacity: '0', transform: 'translateX(24px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' }
+            },
+            barGrow: { '0%': { width: '0%' }, '100%': { width: 'var(--bar-w)' } },
+            pulseScan: { '0%,100%': { opacity: '0.35' }, '50%': { opacity: '1' } }
+          },
+          animation: {
+            scanIn: 'scanIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
+            slideIn: 'slideIn 0.4s cubic-bezier(0.22,1,0.36,1) both',
+            barGrow: 'barGrow 0.7s cubic-bezier(0.22,1,0.36,1) both',
+            pulseScan: 'pulseScan 1s ease-in-out infinite'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React + ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Recharts (+ deps) -->
+  <script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+  <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <!-- Babel for in-browser JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html, body, #root { height: 100%; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    ::selection { background: #c7d2fe; }
+  </style>
+</head>
+<body class="bg-slate-100">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } = Recharts;
+
+/* ============================================================
+   1. SAMPLE DATASET  (60 items: marketplace + a few news)
+   ============================================================ */
+const DATASET = [
+  // ---- Furniture ----
+  { id: 1,  category: 'furniture', title: 'Vintage wooden writing desk', description: 'Solid oak desk with three drawers and a worn patina from decades of use. Perfect for a home office or study nook.', metadata: ['desk','oak','wood','office','antique','study'] },
+  { id: 2,  category: 'furniture', title: 'Mid-century teak dining table', description: 'Seats six comfortably with tapered legs and a rich teak finish. A timeless centerpiece for any dining room.', metadata: ['table','teak','wood','dining','midcentury'] },
+  { id: 3,  category: 'furniture', title: 'Budget-friendly fabric sofa', description: 'Comfortable three-seat couch in soft grey fabric. An inexpensive choice for first apartments and rentals.', metadata: ['sofa','couch','cheap','affordable','living room'] },
+  { id: 4,  category: 'furniture', title: 'Rustic reclaimed wood coffee table', description: 'Handcrafted from reclaimed barn wood with sturdy iron legs. Brings warmth and character to a living space.', metadata: ['table','wood','reclaimed','rustic','living room'] },
+  { id: 5,  category: 'furniture', title: 'Ergonomic mesh office chair', description: 'Breathable mesh back with adjustable lumbar support and armrests. Designed for long hours at the computer.', metadata: ['chair','office','ergonomic','seating','desk'] },
+  { id: 6,  category: 'furniture', title: 'Cheap pine bookshelf', description: 'Tall five-shelf bookcase in light pine. An affordable storage solution for books, plants, and decor.', metadata: ['bookshelf','pine','wood','cheap','storage','affordable'] },
+  { id: 7,  category: 'furniture', title: 'Leather recliner armchair', description: 'Plush brown leather recliner with a smooth reclining mechanism. The ultimate seat for movie nights.', metadata: ['chair','recliner','leather','seating','living room'] },
+  { id: 8,  category: 'furniture', title: 'Compact standing desk converter', description: 'Adjustable riser that turns any table into a standing desk. Promotes better posture during the workday.', metadata: ['desk','standing','office','adjustable','ergonomic'] },
+  { id: 9,  category: 'furniture', title: 'Walnut nightstand with drawer', description: 'Small bedside table in dark walnut with a single soft-close drawer. Pairs well with most bedroom sets.', metadata: ['nightstand','walnut','wood','bedroom','table'] },
+  { id: 10, category: 'furniture', title: 'Inexpensive metal bed frame', description: 'Sturdy queen-size steel frame that assembles in minutes. A low-cost upgrade from a box spring.', metadata: ['bed','frame','metal','cheap','bedroom','affordable'] },
+  { id: 11, category: 'furniture', title: 'Velvet accent chair', description: 'Emerald green velvet chair with gold-tone legs. A statement piece that elevates any reading corner.', metadata: ['chair','velvet','accent','seating','living room'] },
+  { id: 12, category: 'furniture', title: 'Solid maple dresser', description: 'Six-drawer dresser in natural maple with dovetail joinery. Built to last generations.', metadata: ['dresser','maple','wood','bedroom','storage'] },
+  { id: 13, category: 'furniture', title: 'Foldable wooden TV tray set', description: 'Set of four portable snack tables in bamboo wood. Great for small apartments and game nights.', metadata: ['table','wood','bamboo','folding','small'] },
+  { id: 14, category: 'furniture', title: 'Outdoor wicker patio set', description: 'Weather-resistant wicker sofa and two chairs with cushions. Transforms a balcony into a lounge.', metadata: ['patio','wicker','outdoor','sofa','seating'] },
+
+  // ---- Electronics ----
+  { id: 15, category: 'electronics', title: 'Noise-cancelling wireless headphones', description: 'Over-ear Bluetooth headphones with 30-hour battery and active noise cancellation. Ideal for travel and focus.', metadata: ['headphones','audio','bluetooth','wireless','noise'] },
+  { id: 16, category: 'electronics', title: 'Budget true-wireless earbuds', description: 'Affordable in-ear buds with a charging case and decent bass. A cheap entry into wireless audio.', metadata: ['earbuds','audio','wireless','cheap','affordable','bluetooth'] },
+  { id: 17, category: 'electronics', title: '4K ultra-HD smart television', description: '55-inch LED TV with HDR, streaming apps, and voice remote. Crisp picture for movies and gaming.', metadata: ['tv','television','4k','smart','screen'] },
+  { id: 18, category: 'electronics', title: 'Mechanical gaming keyboard', description: 'RGB-backlit keyboard with tactile brown switches and a detachable cable. Built for fast, precise typing.', metadata: ['keyboard','gaming','mechanical','rgb','computer'] },
+  { id: 19, category: 'electronics', title: 'Portable Bluetooth speaker', description: 'Waterproof speaker with deep bass and 12-hour playtime. Clips onto a backpack for music anywhere.', metadata: ['speaker','audio','bluetooth','portable','waterproof'] },
+  { id: 20, category: 'electronics', title: 'Lightweight ultrabook laptop', description: 'Thin 14-inch laptop with all-day battery and a fast SSD. Handles work, browsing, and light editing.', metadata: ['laptop','computer','ultrabook','portable','work'] },
+  { id: 21, category: 'electronics', title: 'Affordable Android smartphone', description: 'Unlocked phone with a big screen, dual cameras, and a budget price. Great value for everyday use.', metadata: ['phone','smartphone','android','cheap','affordable','mobile'] },
+  { id: 22, category: 'electronics', title: 'Wireless ergonomic mouse', description: 'Contoured mouse with silent clicks and a long-lasting battery. Reduces wrist strain during long sessions.', metadata: ['mouse','computer','wireless','ergonomic','office'] },
+  { id: 23, category: 'electronics', title: 'Smart home security camera', description: 'Indoor 1080p camera with motion alerts and night vision. Watch your home from your phone anywhere.', metadata: ['camera','security','smart','home','wifi'] },
+  { id: 24, category: 'electronics', title: 'Fast USB-C charging hub', description: 'Seven-port hub with HDMI, card reader, and power delivery. Expands a laptop into a full workstation.', metadata: ['hub','usb','charging','laptop','accessory'] },
+  { id: 25, category: 'electronics', title: 'Curved ultrawide computer monitor', description: '34-inch QHD monitor with a curved panel for immersive work and play. Doubles your screen real estate.', metadata: ['monitor','screen','computer','ultrawide','display'] },
+  { id: 26, category: 'electronics', title: 'Budget fitness smartwatch', description: 'Tracks steps, heart rate, and sleep with a week of battery. An inexpensive way to start a health routine.', metadata: ['watch','smartwatch','fitness','cheap','affordable','wearable'] },
+  { id: 27, category: 'electronics', title: 'Compact mirrorless camera', description: '24-megapixel mirrorless camera with interchangeable lenses and 4K video. A serious step up from a phone.', metadata: ['camera','photography','mirrorless','lens','video'] },
+  { id: 28, category: 'electronics', title: 'Robot vacuum cleaner', description: 'Self-charging vacuum that maps your home and avoids obstacles. Schedule cleanings from an app.', metadata: ['vacuum','robot','smart','home','cleaning'] },
+
+  // ---- Listings / misc marketplace ----
+  { id: 29, category: 'listings', title: 'Cozy one-bedroom apartment for rent', description: 'Sunlit unit near downtown with hardwood floors and updated kitchen. Walking distance to cafes and transit.', metadata: ['apartment','rent','housing','downtown','one-bedroom'] },
+  { id: 30, category: 'listings', title: 'Used mountain bike in great shape', description: 'Lightly ridden 21-speed mountain bike with new tires and brakes. Perfect for trails and commuting.', metadata: ['bike','bicycle','mountain','used','cycling'] },
+  { id: 31, category: 'listings', title: 'Garage sale: tools and yard equipment', description: 'Assorted hand tools, a lawnmower, and a leaf blower priced to sell. Everything must go this weekend.', metadata: ['tools','garage','yard','lawnmower','sale'] },
+  { id: 32, category: 'listings', title: 'Handmade ceramic dinnerware set', description: 'Twelve-piece stoneware set glazed in earthy tones. Microwave and dishwasher safe, made by a local artist.', metadata: ['dinnerware','ceramic','handmade','kitchen','plates'] },
+  { id: 33, category: 'listings', title: 'Acoustic guitar with soft case', description: 'Full-size dreadnought acoustic guitar with a warm tone. Includes a padded gig bag and spare strings.', metadata: ['guitar','music','acoustic','instrument','strings'] },
+  { id: 34, category: 'listings', title: 'Affordable winter tires set of four', description: 'Used but reliable snow tires with plenty of tread left. A cheap way to stay safe on icy roads.', metadata: ['tires','car','winter','cheap','affordable','auto'] },
+  { id: 35, category: 'listings', title: 'Espresso machine, barely used', description: 'Semi-automatic espresso maker with a steam wand for lattes. Pulls rich shots straight from your kitchen.', metadata: ['espresso','coffee','machine','kitchen','appliance'] },
+  { id: 36, category: 'listings', title: 'Kids wooden play kitchen', description: 'Adorable toy kitchen made of sustainable wood with knobs that click. Sparks hours of imaginative play.', metadata: ['toy','wood','kids','kitchen','play'] },
+  { id: 37, category: 'listings', title: 'Professional studio microphone', description: 'Large-diaphragm condenser mic with a shock mount and pop filter. Captures clean vocals and podcasts.', metadata: ['microphone','audio','recording','podcast','studio'] },
+  { id: 38, category: 'listings', title: 'Set of vintage vinyl records', description: 'Curated crate of classic rock and jazz LPs in excellent condition. A treat for any record collector.', metadata: ['vinyl','records','music','vintage','collectible'] },
+  { id: 39, category: 'listings', title: 'Inexpensive moving boxes bundle', description: 'Thirty sturdy cardboard boxes in assorted sizes with tape. A cheap kit for an upcoming move.', metadata: ['boxes','moving','cardboard','cheap','affordable'] },
+  { id: 40, category: 'listings', title: 'Hardly-used jogging stroller', description: 'All-terrain three-wheel stroller with a canopy and storage basket. Smooth ride for runs in the park.', metadata: ['stroller','baby','jogging','kids','outdoor'] },
+  { id: 41, category: 'listings', title: 'Camping tent for four people', description: 'Waterproof dome tent that pitches in ten minutes. Roomy enough for a family weekend in the woods.', metadata: ['tent','camping','outdoor','gear','waterproof'] },
+  { id: 42, category: 'listings', title: 'Antique brass table lamp', description: 'Elegant brass lamp with a pleated linen shade and warm glow. Adds a vintage touch to a desk or console.', metadata: ['lamp','brass','antique','lighting','desk'] },
+  { id: 43, category: 'listings', title: 'Electric guitar starter bundle', description: 'Beginner electric guitar with a small amp, cable, and picks. Everything you need to start playing today.', metadata: ['guitar','electric','music','amp','beginner'] },
+  { id: 44, category: 'listings', title: 'Stainless steel cookware set', description: 'Ten-piece pots and pans set with tempered glass lids. Even heating for everyday home cooking.', metadata: ['cookware','kitchen','pots','pans','steel'] },
+  { id: 45, category: 'listings', title: 'Folding treadmill for home gym', description: 'Compact motorized treadmill that folds flat for storage. Build a workout routine without the gym fees.', metadata: ['treadmill','fitness','exercise','home','gym'] },
+  { id: 46, category: 'listings', title: 'Designer leather handbag', description: 'Genuine leather tote with gold hardware and a roomy interior. Gently used and authenticated.', metadata: ['handbag','leather','fashion','designer','accessory'] },
+  { id: 47, category: 'listings', title: 'Aquarium tank with full setup', description: 'Twenty-gallon glass tank with filter, heater, and LED light. A complete starter home for freshwater fish.', metadata: ['aquarium','fish','tank','pet','setup'] },
+  { id: 48, category: 'listings', title: 'Snowboard with bindings', description: 'All-mountain snowboard in great condition with adjustable bindings. Ready to hit the slopes this season.', metadata: ['snowboard','winter','sports','outdoor','bindings'] },
+
+  // ---- News (a few mixed in) ----
+  { id: 49, category: 'news', title: 'Local news: City council approves new park', description: 'The council voted to fund a riverside green space with walking trails and a playground. Construction begins next spring.', metadata: ['council','park','city','local','government'] },
+  { id: 50, category: 'news', title: 'Affordable housing initiative gains support', description: 'A new city program offers grants to build low-cost apartments downtown. Officials hope to ease the rental crunch.', metadata: ['housing','affordable','city','policy','rent'] },
+  { id: 51, category: 'news', title: 'Tech firm opens campus, adds 500 jobs', description: 'A growing software company will open a regional office, bringing hundreds of engineering roles to the area.', metadata: ['tech','jobs','business','company','economy'] },
+  { id: 52, category: 'news', title: 'Farmers market returns for the season', description: 'The weekly downtown market reopens with local produce, baked goods, and crafts. Vendors expect record crowds.', metadata: ['market','farmers','local','food','community'] },
+  { id: 53, category: 'news', title: 'School district unveils new science wing', description: 'The high school cut the ribbon on a modern lab building funded by a recent bond. Students start classes there Monday.', metadata: ['school','education','science','district','local'] },
+  { id: 54, category: 'news', title: 'Severe storm prompts weekend flood warnings', description: 'Forecasters warn of heavy rain and rising rivers across the region. Residents are urged to prepare and avoid travel.', metadata: ['weather','storm','flood','warning','safety'] },
+
+  // ---- A few more furniture/electronics for semantic depth ----
+  { id: 55, category: 'furniture', title: 'Glass-top modern console table', description: 'Sleek entryway table with a tempered glass surface and chrome frame. A minimalist accent for a hallway.', metadata: ['table','glass','console','modern','entryway'] },
+  { id: 56, category: 'furniture', title: 'Plush sectional sofa, like new', description: 'Spacious L-shaped couch in beige with deep cushions. Comfortably seats the whole family for movie night.', metadata: ['sofa','sectional','couch','living room','seating'] },
+  { id: 57, category: 'electronics', title: 'Entry-level digital piano keyboard', description: '88 weighted keys with built-in speakers and headphone output. A budget instrument for learning at home.', metadata: ['piano','keyboard','music','digital','affordable'] },
+  { id: 58, category: 'electronics', title: 'Wi-Fi mesh router system', description: 'Three-node mesh network that blankets a large home in fast, reliable Wi-Fi. Easy app-based setup.', metadata: ['router','wifi','network','mesh','internet'] },
+  { id: 59, category: 'furniture', title: 'Adjustable wooden bar stools, pair', description: 'Two swivel stools in solid wood with a brushed metal base. Perfect height for a kitchen island.', metadata: ['stool','wood','bar','kitchen','seating'] },
+  { id: 60, category: 'electronics', title: 'Compact air purifier with HEPA filter', description: 'Quiet purifier that clears dust, smoke, and allergens from a bedroom. Indicator shows air quality in real time.', metadata: ['purifier','air','hepa','home','health'] },
+];
+
+/* ============================================================
+   2. TEXT UTILITIES + EMBEDDINGS (TF-IDF, deterministic)
+   ============================================================ */
+const STOP = new Set(['the','a','an','and','or','for','with','of','to','in','on','at','is','it','that','this','from','your','any','all','as','by','be','are']);
+
+function tokenize(text) {
+  return (text || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+}
+function docText(item) {
+  return `${item.title} ${item.description} ${item.metadata.join(' ')}`;
+}
+
+// Build vocabulary + IDF across the corpus (deterministic)
+function buildModel(items) {
+  const df = {};                       // document frequency
+  const docTokens = items.map((it) => {
+    const toks = tokenize(docText(it)).filter((t) => !STOP.has(t) && t.length > 1);
+    const seen = new Set(toks);
+    seen.forEach((t) => { df[t] = (df[t] || 0) + 1; });
+    return toks;
+  });
+  const vocab = Object.keys(df);
+  const idf = {};
+  const N = items.length;
+  vocab.forEach((t) => { idf[t] = Math.log((N + 1) / (df[t] + 1)) + 1; });
+
+  // TF-IDF vector for a token list, restricted to known vocab
+  const vectorize = (toks) => {
+    const tf = {};
+    toks.forEach((t) => { if (idf[t] !== undefined) tf[t] = (tf[t] || 0) + 1; });
+    const vec = {};
+    let norm = 0;
+    Object.keys(tf).forEach((t) => {
+      const w = (tf[t] / toks.length) * idf[t];
+      vec[t] = w; norm += w * w;
+    });
+    norm = Math.sqrt(norm) || 1;
+    Object.keys(vec).forEach((t) => { vec[t] /= norm; });
+    return vec;
+  };
+
+  const docVectors = docTokens.map(vectorize);
+  return { idf, vectorize, docVectors };
+}
+
+function cosine(a, b) {
+  let dot = 0;
+  const keys = Object.keys(a).length < Object.keys(b).length ? a : b;
+  for (const k in keys) { if (a[k] && b[k]) dot += a[k] * b[k]; }
+  return dot; // vectors are already normalized
+}
+
+const MODEL = buildModel(DATASET);
+
+/* ============================================================
+   3. SEARCH ALGORITHMS
+   ============================================================ */
+// Keyword: word matches in description + title matches x2, normalized by query words.
+function keywordSearch(query) {
+  const qWords = [...new Set(tokenize(query).filter((w) => !STOP.has(w)))];
+  if (qWords.length === 0) return [];
+  const phrase = query.trim().toLowerCase();
+
+  return DATASET.map((item) => {
+    const titleToks = new Set(tokenize(item.title));
+    const bodyToks = new Set(tokenize(`${item.description} ${item.metadata.join(' ')}`));
+    const matched = [];
+    let titleHits = 0, bodyHits = 0;
+
+    qWords.forEach((w) => {
+      const inTitle = titleToks.has(w);
+      const inBody = bodyToks.has(w);
+      if (inTitle) { titleHits++; matched.push({ word: w, where: 'title' }); }
+      else if (inBody) { bodyHits++; matched.push({ word: w, where: 'body' }); }
+    });
+
+    // weighted: title hits count double
+    let raw = (bodyHits + titleHits * 2) / (qWords.length * 2);
+    // exact phrase bonus
+    const phraseHit = phrase.length > 2 &&
+      (item.title.toLowerCase().includes(phrase) || item.description.toLowerCase().includes(phrase));
+    if (phraseHit) raw = Math.min(1, raw + 0.25);
+
+    return { item, score: Math.round(Math.min(1, raw) * 100), matched, phraseHit };
+  })
+  .filter((r) => r.score > 0)
+  .sort((a, b) => b.score - a.score);
+}
+
+// Semantic: cosine similarity between query TF-IDF vector and doc vectors.
+function semanticSearch(query) {
+  const qToks = tokenize(query).filter((w) => !STOP.has(w));
+  if (qToks.length === 0) return [];
+  const qVec = MODEL.vectorize(qToks);
+  if (Object.keys(qVec).length === 0) return [];
+
+  return DATASET.map((item, i) => {
+    const sim = cosine(qVec, MODEL.docVectors[i]);
+    return { item, score: Math.round(sim * 100), sim };
+  })
+  .filter((r) => r.score > 0)
+  .sort((a, b) => b.score - a.score);
+}
+
+const EXAMPLES = ['wooden desk', 'affordable furniture', 'something to play music on'];
+
+/* ============================================================
+   4. SHARED UI PIECES
+   ============================================================ */
+const CAT_COLORS = {
+  furniture: 'bg-amber-100 text-amber-800',
+  electronics: 'bg-sky-100 text-sky-800',
+  listings: 'bg-emerald-100 text-emerald-800',
+  news: 'bg-rose-100 text-rose-800',
+};
+
+function highlight(text, words) {
+  if (!words || words.length === 0) return text;
+  const re = new RegExp(`\\b(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+  const parts = text.split(re);
+  return parts.map((p, i) =>
+    words.some((w) => w.toLowerCase() === p.toLowerCase())
+      ? <mark key={i} className="bg-green-200 text-green-900 rounded px-0.5 font-semibold">{p}</mark>
+      : <span key={i}>{p}</span>
+  );
+}
+
+function ScoreBar({ score, color = 'indigo', delay = 0 }) {
+  const palette = {
+    indigo: 'from-indigo-500 to-violet-500',
+    emerald: 'from-emerald-500 to-teal-500',
+    amber: 'from-amber-500 to-orange-500',
+  }[color];
+  return (
+    <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
+      <div
+        className={`h-full rounded-full bg-gradient-to-r ${palette} animate-barGrow`}
+        style={{ '--bar-w': `${score}%`, animationDelay: `${delay}ms` }}
+      />
+    </div>
+  );
+}
+
+function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, delay, footer }) {
+  const accentColor = accent === 'emerald' ? 'emerald' : 'indigo';
+  return (
+    <div
+      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 animate-scanIn hover:shadow-md transition-shadow"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex-none w-7 h-7 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">{rank}</span>
+          <h4 className="font-semibold text-slate-800 truncate">{highlight(item.title, highlightWords)}</h4>
+        </div>
+        <div className="flex-none text-right">
+          <div className={`text-lg font-extrabold ${accent === 'emerald' ? 'text-emerald-600' : 'text-indigo-600'}`}>{score}%</div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400">{scoreLabel}</div>
+        </div>
+      </div>
+      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{highlight(item.description, highlightWords)}</p>
+      <div className="mt-3">
+        <ScoreBar score={score} color={accentColor} delay={delay + 150} />
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CAT_COLORS[item.category]}`}>{item.category}</span>
+        {footer}
+      </div>
+    </div>
+  );
+}
+
+function SearchBox({ query, setQuery, onSearch, accent }) {
+  const ring = accent === 'emerald' ? 'focus:ring-emerald-400' : 'focus:ring-indigo-400';
+  const btn = accent === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700';
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+          placeholder="Search the marketplace…"
+          className={`flex-1 px-4 py-3 rounded-lg border border-slate-300 text-slate-800 outline-none focus:ring-2 ${ring}`}
+        />
+        <button onClick={onSearch} className={`px-6 py-3 rounded-lg text-white font-semibold ${btn} transition-colors`}>Search</button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-slate-400">Try:</span>
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex}
+            onClick={() => { setQuery(ex); onSearch(ex); }}
+            className="text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+          >{ex}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Scanning({ accent }) {
+  const dot = accent === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500';
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-4">
+      <div className="flex gap-2">
+        {[0,1,2,3].map((i) => (
+          <span key={i} className={`w-3 h-3 rounded-full ${dot} animate-pulseScan`} style={{ animationDelay: `${i*120}ms` }} />
+        ))}
+      </div>
+      <p className="text-sm text-slate-400">Scanning {DATASET.length} items…</p>
+    </div>
+  );
+}
+
+// Hook that runs a search with a brief scan animation
+function useSearch(searchFn) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const timer = useRef(null);
+
+  const run = (override) => {
+    const q = typeof override === 'string' ? override : query;
+    if (!q.trim()) { setResults(null); return; }
+    setScanning(true);
+    setResults(null);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setResults(searchFn(q).slice(0, 5));
+      setScanning(false);
+    }, 650);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return { query, setQuery, results, scanning, run };
+}
+
+/* ============================================================
+   5. SLIDES
+   ============================================================ */
+function SlideShell({ children }) {
+  return <div className="animate-slideIn h-full flex flex-col">{children}</div>;
+}
+
+function SlideTitle() {
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <span className="text-xs font-semibold tracking-[0.3em] text-indigo-500 uppercase mb-6">Interactive Demo</span>
+        <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight">
+          Semantic <span className="text-slate-400 font-light">vs</span> Keyword<br/>
+          <span className="bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">Search</span>
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg text-slate-600">
+          Two ways to find things in the same dataset. One matches <strong>words</strong>;
+          the other understands <strong>meaning</strong>. We'll run both live on a marketplace of {DATASET.length} listings and watch where they agree — and where they don't.
+        </p>
+        <div className="mt-10 flex gap-3 text-sm">
+          <span className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 font-medium">🔤 Keyword matching</span>
+          <span className="px-4 py-2 rounded-full bg-emerald-50 text-emerald-700 font-medium">🧠 Semantic similarity</span>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function ExplainKeyword() {
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">How Keyword Search Works</h2>
+        <p className="text-slate-600 mb-8">It looks for the <strong>literal words</strong> you typed. No understanding of meaning — just matching.</p>
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          {[
+            { n: '1', t: 'Split the query', d: 'Break "wooden desk" into the tokens wooden and desk.' },
+            { n: '2', t: 'Match & weight', d: 'Count matches in each listing. A match in the title counts 2× a match in the body.' },
+            { n: '3', t: 'Score 0–100', d: 'Normalize by query length, add a bonus for exact phrase matches.' },
+          ].map((s) => (
+            <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white font-bold grid place-items-center mb-3">{s.n}</div>
+              <h3 className="font-semibold text-slate-800">{s.t}</h3>
+              <p className="text-sm text-slate-500 mt-1">{s.d}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-slate-900 rounded-xl p-5 font-mono text-sm text-slate-200">
+          <span className="text-indigo-300">score</span> = ( bodyMatches + <span className="text-amber-300">titleMatches × 2</span> ) / (queryWords × 2) × 100
+          <div className="text-slate-400 mt-2 text-xs">+ 25-point bonus when the exact phrase appears</div>
+        </div>
+        <p className="mt-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          ⚠️ The catch: search "affordable furniture" and a "<em>budget-friendly fabric sofa</em>" scores <strong>zero</strong> — it never uses those exact words.
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+function DemoKeyword() {
+  const s = useSearch(keywordSearch);
+  useEffect(() => { s.setQuery(EXAMPLES[0]); s.run(EXAMPLES[0]); }, []);
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">Keyword Search — Live</h2>
+        <p className="text-slate-500 mb-5 text-sm">Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. Notice it only finds listings that literally contain your words.</p>
+        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="indigo" />
+        <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
+          {s.scanning && <Scanning accent="indigo" />}
+          {!s.scanning && s.results && s.results.length === 0 && (
+            <div className="text-center py-16 text-slate-400">No listings contain those exact words. Try semantic search →</div>
+          )}
+          {!s.scanning && s.results && s.results.map((r, i) => (
+            <ResultCard
+              key={r.item.id} rank={i+1} item={r.item} score={r.score}
+              scoreLabel="keyword" accent="indigo" delay={i*80}
+              highlightWords={r.matched.map((m) => m.word)}
+              footer={<span className="text-xs text-slate-400">
+                {r.matched.filter((m) => m.where === 'title').length > 0 && <span className="text-indigo-600 font-medium">title match </span>}
+                {r.matched.length} word{r.matched.length !== 1 ? 's' : ''} matched{r.phraseHit && ' · phrase bonus'}
+              </span>}
+            />
+          ))}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function ExplainSemantic() {
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">How Semantic Search Works</h2>
+        <p className="text-slate-600 mb-8">It compares <strong>meaning</strong>, not spelling. Words that appear in similar contexts end up close together.</p>
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          {[
+            { n: '1', t: 'Embed everything', d: 'Each listing becomes a vector from its word frequencies, weighted by how rare each word is (TF-IDF).' },
+            { n: '2', t: 'Embed the query', d: 'Your query is turned into a vector the exact same way.' },
+            { n: '3', t: 'Cosine similarity', d: 'Measure the angle between query and listing vectors. Closer angle → higher score.' },
+          ].map((s) => (
+            <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white font-bold grid place-items-center mb-3">{s.n}</div>
+              <h3 className="font-semibold text-slate-800">{s.t}</h3>
+              <p className="text-sm text-slate-500 mt-1">{s.d}</p>
+            </div>
+          ))}
+        </div>
+        <div className="bg-slate-900 rounded-xl p-5 font-mono text-sm text-slate-200">
+          <span className="text-emerald-300">similarity</span> = cos(θ) = ( <span className="text-amber-300">A · B</span> ) / ( ‖A‖ ‖B‖ ) &nbsp;→&nbsp; 0…1 → 0–100%
+          <div className="text-slate-400 mt-2 text-xs">Real systems use neural embeddings; here we use a lightweight, fully client-side TF-IDF model — no API calls.</div>
+        </div>
+        <p className="mt-6 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          ✅ The payoff: "affordable furniture" now surfaces <em>budget sofas</em>, <em>cheap bookshelves</em>, and <em>inexpensive bed frames</em> — even without the word "affordable."
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+function DemoSemantic() {
+  const s = useSearch(semanticSearch);
+  useEffect(() => { s.setQuery(EXAMPLES[1]); s.run(EXAMPLES[1]); }, []);
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">Semantic Search — Live</h2>
+        <p className="text-slate-500 mb-5 text-sm">Scores are cosine similarity. Try "affordable furniture" — it understands intent, not just words.</p>
+        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="emerald" />
+        <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
+          {s.scanning && <Scanning accent="emerald" />}
+          {!s.scanning && s.results && s.results.length === 0 && (
+            <div className="text-center py-16 text-slate-400">No semantic matches found.</div>
+          )}
+          {!s.scanning && s.results && s.results.map((r, i) => (
+            <ResultCard
+              key={r.item.id} rank={i+1} item={r.item} score={r.score}
+              scoreLabel="similarity" accent="emerald" delay={i*80}
+              highlightWords={[]}
+              footer={<span className="text-xs text-slate-400">cosine similarity {r.sim.toFixed(3)}</span>}
+            />
+          ))}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function Comparison() {
+  const [query, setQuery] = useState(EXAMPLES[1]);
+  const [active, setActive] = useState(EXAMPLES[1]);
+  const kw = useMemo(() => keywordSearch(active).slice(0, 5), [active]);
+  const sem = useMemo(() => semanticSearch(active).slice(0, 5), [active]);
+
+  const chartData = useMemo(() => {
+    // union of top items, show both scores
+    const map = new Map();
+    kw.forEach((r) => map.set(r.item.id, { name: r.item.title.slice(0, 22), keyword: r.score, semantic: 0 }));
+    sem.forEach((r) => {
+      const e = map.get(r.item.id) || { name: r.item.title.slice(0, 22), keyword: 0, semantic: 0 };
+      e.semantic = r.score; map.set(r.item.id, e);
+    });
+    return [...map.values()].sort((a, b) => (b.keyword + b.semantic) - (a.keyword + a.semantic)).slice(0, 6);
+  }, [active]);
+
+  const kwIds = kw.map((r) => r.item.id);
+  const semIds = sem.map((r) => r.item.id);
+  const onlySemantic = sem.filter((r) => !kwIds.includes(r.item.id)).length;
+
+  const run = (override) => setActive(typeof override === 'string' ? override : query);
+
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 overflow-hidden">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">Side-by-Side</h2>
+        <p className="text-slate-500 text-sm mb-4">One query, both engines. Watch the rankings diverge.</p>
+        <SearchBox query={query} setQuery={setQuery} onSearch={run} accent="indigo" />
+
+        <div className="flex-1 overflow-y-auto mt-4 pr-1">
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Keyword column */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 text-indigo-700 font-semibold text-sm"><span>🔤</span> Keyword — top 5</div>
+              <div className="space-y-2">
+                {kw.length === 0 && <div className="text-sm text-slate-400 bg-white border rounded-lg p-4">No literal matches.</div>}
+                {kw.map((r, i) => (
+                  <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="indigo" unique={!semIds.includes(r.item.id)} />
+                ))}
+              </div>
+            </div>
+            {/* Semantic column */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 text-emerald-700 font-semibold text-sm"><span>🧠</span> Semantic — top 5</div>
+              <div className="space-y-2">
+                {sem.map((r, i) => (
+                  <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="emerald" unique={!kwIds.includes(r.item.id)} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="mt-5 bg-white rounded-xl border border-slate-200 p-4">
+            <h3 className="text-sm font-semibold text-slate-700 mb-3">Score comparison</h3>
+            <div style={{ width: '100%', height: 240 }}>
+              <ResponsiveContainer>
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={50} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="keyword" name="Keyword" fill="#6366f1" radius={[3,3,0,0]} />
+                  <Bar dataKey="semantic" name="Semantic" fill="#10b981" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
+            <strong>Why they differ:</strong> Keyword search ranks by literal word overlap, so it rewards titles that repeat your exact terms.
+            Semantic search ranks by meaning — for this query it surfaced <strong>{onlySemantic}</strong> listing{onlySemantic !== 1 ? 's' : ''} that keyword search missed entirely (highlighted with a dot).
+          </div>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function CompactRow({ rank, item, score, accent, unique }) {
+  const color = accent === 'emerald' ? 'text-emerald-600' : 'text-indigo-600';
+  const barColor = accent === 'emerald' ? 'emerald' : 'indigo';
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 p-3 animate-scanIn" style={{ animationDelay: `${rank*60}ms` }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex-none w-5 h-5 rounded bg-slate-800 text-white text-xs font-bold grid place-items-center">{rank}</span>
+          {unique && <span className={`flex-none w-2 h-2 rounded-full ${accent === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'}`} title="Unique to this engine" />}
+          <span className="text-sm font-medium text-slate-700 truncate">{item.title}</span>
+        </div>
+        <span className={`flex-none text-sm font-bold ${color}`}>{score}%</span>
+      </div>
+      <div className="mt-2"><ScoreBar score={score} color={barColor} delay={rank*60} /></div>
+    </div>
+  );
+}
+
+function Takeaways() {
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
+        <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center">When to use each</h2>
+        <div className="grid md:grid-cols-2 gap-5">
+          <div className="bg-white rounded-2xl border-2 border-indigo-200 p-6">
+            <div className="text-2xl mb-2">🔤</div>
+            <h3 className="text-xl font-bold text-indigo-700">Keyword Search</h3>
+            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+              <li>✓ Exact product codes, SKUs, names</li>
+              <li>✓ Fast, transparent, easy to debug</li>
+              <li>✓ No model or training needed</li>
+              <li>✗ Misses synonyms &amp; intent</li>
+              <li>✗ Brittle with natural-language queries</li>
+            </ul>
+          </div>
+          <div className="bg-white rounded-2xl border-2 border-emerald-200 p-6">
+            <div className="text-2xl mb-2">🧠</div>
+            <h3 className="text-xl font-bold text-emerald-700">Semantic Search</h3>
+            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+              <li>✓ Understands meaning &amp; synonyms</li>
+              <li>✓ Great for conversational queries</li>
+              <li>✓ Surfaces relevant-but-differently-worded items</li>
+              <li>✗ Heavier to compute &amp; store</li>
+              <li>✗ Harder to explain a ranking</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-6 text-center text-slate-600">
+          <p className="text-lg font-medium">💡 The best production systems use <span className="text-violet-600 font-bold">both</span> — keyword for precision, semantic for recall — and blend the scores.</p>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+const SLIDES = [
+  { title: 'Title & Intro', render: () => <SlideTitle /> },
+  { title: 'How Keyword Search Works', render: () => <ExplainKeyword /> },
+  { title: 'Keyword Search — Live Demo', render: () => <DemoKeyword /> },
+  { title: 'How Semantic Search Works', render: () => <ExplainSemantic /> },
+  { title: 'Semantic Search — Live Demo', render: () => <DemoSemantic /> },
+  { title: 'Side-by-Side Comparison', render: () => <Comparison /> },
+  { title: 'Key Takeaways', render: () => <Takeaways /> },
+];
+
+/* ============================================================
+   6. APP SHELL + NAVIGATION
+   ============================================================ */
+function App() {
+  const [i, setI] = useState(0);
+  const next = () => setI((v) => Math.min(SLIDES.length - 1, v + 1));
+  const prev = () => setI((v) => Math.max(0, v - 1));
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key === 'ArrowRight') next();
+      if (e.key === 'ArrowLeft') prev();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
+      {/* progress dots */}
+      <div className="flex-none flex items-center justify-center gap-2 pt-4">
+        {SLIDES.map((s, idx) => (
+          <button
+            key={idx}
+            onClick={() => setI(idx)}
+            title={s.title}
+            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`}
+          />
+        ))}
+      </div>
+
+      {/* slide body */}
+      <main className="flex-1 overflow-hidden py-4">
+        {SLIDES[i].render()}
+      </main>
+
+      {/* nav bar */}
+      <footer className="flex-none border-t border-slate-200 bg-white/70 backdrop-blur px-6 py-3 flex items-center justify-between">
+        <button
+          onClick={prev} disabled={i === 0}
+          className="px-5 py-2 rounded-lg font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >← Previous</button>
+
+        <div className="text-center">
+          <div className="text-sm font-semibold text-slate-700">{SLIDES[i].title}</div>
+          <div className="text-xs text-slate-400">Slide {i + 1} of {SLIDES.length} · <span className="text-slate-500">Obsidian Software</span></div>
+        </div>
+
+        <button
+          onClick={next} disabled={i === SLIDES.length - 1}
+          className="px-5 py-2 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >{i === SLIDES.length - 1 ? 'Done' : 'Next →'}</button>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

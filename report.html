@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Critique & Goals — Semantic vs Keyword Search Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  html{scroll-behavior:smooth;}
+  ::selection{background:#c7d2fe;}
+  .fade{animation:fade .5s ease both;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo } = React;
+
+/* ---------- DATA ---------- */
+const PERSONAS = [
+  { key:'beginner', name:'Beginner Student', icon:'🌱', color:'emerald',
+    take:"A polished, engaging presentation that wins by showing the keyword-vs-semantic difference through live demos and side-by-side comparison, but loses by never explaining how semantic search works — ExplainSemantic drops “vectors,” “TF-IDF,” and “cosine similarity” without teaching them, and there’s no guidance on when to use each method in real life.",
+    strengths:["Live demos make it click instantly","Concrete real-marketplace framing from slide 1","Clear 3-step visual breakdown on explainers","The Comparison slide is where learning lands"],
+    weaknesses:["The (A·B)/(‖A‖‖B‖) formula is shown but never taught","Stop-word filtering never justified","No visual for what “angle” means in cosine","Pre-filled queries replace hypothesis-testing with a script","Takeaways gives no concrete “when would I choose this”"] },
+  { key:'advanced', name:'Advanced Student', icon:'🎓', color:'indigo',
+    take:"Visually compelling and the live interaction is pedagogically powerful, but it conflates TF-IDF + cosine with true semantic understanding, hides architectural trade-offs, and risks embedding misconceptions. For a portfolio it works; for teaching it’s intellectually loose.",
+    strengths:["Correct TF-IDF + L2-normalized cosine implementation","Honest trade-off framing on Takeaways","Smart dataset with deliberate synonymy & exact-match cases"],
+    weaknesses:["“Understands meaning/intent” is false for TF-IDF","650ms artificial delay unexplained — reads as real latency","No why-IDF-works, why-L2, or sparse vs dense","BM25 (the real industry baseline) is absent","Low cosine scores unexplained (high-dim sparsity)"] },
+  { key:'marketer', name:'Brand Marketer', icon:'📣', color:'rose',
+    take:"Technically polished and educationally excellent, but Obsidian Software is nearly invisible to prospects — a viewer finishes impressed by the algorithm but has no idea who built it, what they sell, or how to reach them. A missed conversion opportunity.",
+    strengths:["Polished UI signals quality & competence","Clear pedagogical arc","Live demos make the value memorable","Honest framing builds credibility","Client-side build shows self-sufficiency"],
+    weaknesses:["Brand appears once in gray footer text — no logo/story","No business/ROI framing","Zero call-to-action","No credibility signals (case studies, founder)","Academic tone over enterprise outcomes","No service model or engagement path"] },
+  { key:'learning', name:'Learning Experience Designer', icon:'🧩', color:'amber',
+    take:"Strong, polished, with excellent active-learning moments and clean scaffolding, but misses retrieval practice, prediction-before-reveal, and durable conceptual anchoring. The “aha” lands, but most audiences leave without a mental model for when and why to choose semantic search.",
+    strengths:["Live demos follow sound active-learning principles","Comparison chart + unique-item highlight is the centerpiece","Well-ordered scaffolding (explain → demo → compare)","Legible formula callouts"],
+    weaknesses:["No prediction moment before demos (boxes pre-populate)","The “catch” callout names the failure but not the fix","Rarity/IDF asserted without analogy","No checks-for-understanding or failure-case","Same slides serve both audiences undifferentiated"] },
+  { key:'uiux', name:'UI/UX Designer', icon:'🎨', color:'violet',
+    take:"Well-engineered with solid fundamentals and purposeful micro-interactions, but it plays too safe — corporate-template rather than memorable. For a portfolio piece showcasing Obsidian’s craft, it needs more personality, richer data-viz, and stronger hierarchy at projector scale.",
+    strengths:["Purposeful micro-interactions (pulseScan, scanIn, barGrow)","Consistent, accessible indigo/emerald color language","Intentional motion design & custom palette","Genuinely interactive demo slides","Clean responsive reflow"],
+    weaknesses:["Flat typography hierarchy (all headings text-3xl)","Safe Tailwind-default palette, one bold move","Plain Recharts chart, no mount animation/labels","Thin ScoreBar fades on projectors","No prefers-reduced-motion across 60+ animations","Near-invisible 2px “unique” dot; no nav-dot states"] },
+];
+
+const THEMES = [
+  { t:"“When/why would I use each?” is unanswered", d:"Takeaways gives generic pros/cons and “use both” but no concrete decision guidance or real scenario.", who:["beginner","advanced","learning","marketer"] },
+  { t:"The semantic mechanism is never made intuitive", d:"No vector/cosine-angle visual, no analogy for why rarity (IDF) matters, jargon dropped without teaching.", who:["beginner","advanced","learning"] },
+  { t:"Pre-filled demo queries kill the learning moment", d:"Demos auto-populate from EXAMPLES, so audiences watch a scripted demo instead of predicting then testing.", who:["beginner","learning"] },
+  { t:"Honesty / framing of “semantic”", d:"“Understands meaning/intent” overclaims a TF-IDF model; the 650ms delay can mislead about real latency.", who:["advanced","beginner"] },
+  { t:"Brand is invisible and there’s no next step", d:"One gray footer mention, no logo, no CTA, no ROI framing.", who:["marketer","uiux"] },
+  { t:"Polish ceiling on visuals/data-viz & accessibility", d:"Plain chart, thin bars, flat hierarchy, near-invisible “unique” dot, missing reduced-motion support.", who:["uiux","learning"] },
+];
+
+const BACKLOG = [
+  {imp:'High',eff:'Med',  who:['beginner','advanced','learning'], t:"Add a vector + cosine-angle visual to ExplainSemantic", why:"Turns the intimidating (A·B)/(‖A‖‖B‖) formula into intuition — the #1 comprehension gap"},
+  {imp:'High',eff:'Small',who:['beginner','learning'], t:"Empty demo search boxes (remove EXAMPLES auto-run)", why:"Forces predict-then-test; that’s where retention sticks vs watching a script"},
+  {imp:'High',eff:'Small',who:['beginner','learning','advanced'], t:"Add IDF/TF-IDF analogy before the formula", why:"Makes the model feel logical, not magical; explains why rarity matters"},
+  {imp:'High',eff:'Small',who:['learning','beginner'], t:"Add prediction prompts before each demo", why:"Prediction effect raises retention ~15–20%; cheap friction, high payoff"},
+  {imp:'High',eff:'Small',who:['advanced','beginner'], t:"Honest relabel: “TF-IDF model, not neural embeddings”", why:"Prevents misconceptions; signals technical integrity to expert evaluators"},
+  {imp:'High',eff:'Small',who:['marketer','uiux'], t:"Branded footer + contact (logo, name, email)", why:"Prospects currently can’t tell who built it or how to reach them"},
+  {imp:'High',eff:'Small',who:['marketer'], t:"Add a CTA to Takeaways (“Let’s talk”)", why:"Presentation ends with zero conversion path"},
+  {imp:'High',eff:'Small',who:['marketer'], t:"Founder/company intro line on SlideTitle", why:"Establishes authority and specialization on first impression"},
+  {imp:'High',eff:'Small',who:['uiux'], t:"prefers-reduced-motion to disable 60+ animations", why:"Accessibility — non-negotiable for vestibular-sensitive users"},
+  {imp:'High',eff:'Med',  who:['beginner','advanced','learning','marketer'], t:"Rewrite Takeaways with concrete use cases + why blend", why:"Answers the most-repeated question across personas"},
+  {imp:'High',eff:'Med',  who:['uiux'], t:"Elevate the chart: mount animation, labels, taller, grid", why:"Data-viz is the centerpiece of Comparison but reads as generic"},
+  {imp:'High',eff:'Small',who:['learning'], t:"Anchor semantic to a memorable co-occurrence analogy", why:"Gives audiences a sticky internal model, not just a diagram"},
+  {imp:'High',eff:'Med',  who:['uiux'], t:"Stronger visual identity: accent color + custom font", why:"Differentiates from corporate Tailwind defaults for a portfolio"},
+  {imp:'Med', eff:'Small',who:['advanced'], t:"Clarify 650ms scan is animation-only, not latency", why:"Stops students inferring semantic is intrinsically 1000x slower"},
+  {imp:'Med', eff:'Small',who:['uiux'], t:"Differentiate typographic hierarchy across slides", why:"~20% perceived professionalism gain at near-zero cost"},
+  {imp:'Med', eff:'Small',who:['uiux','learning'], t:"Make “unique to engine” a labeled badge, not a 2px dot", why:"Currently invisible; the key insight of Comparison is missed"},
+  {imp:'Med', eff:'Med',  who:['learning','advanced'], t:"Add a failure-case demo (typo / niche term)", why:"Prevents overgeneralizing that semantic always wins; models honesty"},
+  {imp:'Med', eff:'Small',who:['beginner'], t:"Explain why stop words are filtered", why:"Removes an unexplained “magic” step"},
+  {imp:'Med', eff:'Small',who:['advanced'], t:"Note why cosine scores look low (high-dim sparsity)", why:"Explains the score distribution students will notice"},
+  {imp:'Med', eff:'Med',  who:['advanced'], t:"Mention BM25 as the real keyword baseline", why:"Sets correct expectations; the custom formula isn’t standard"},
+  {imp:'Med', eff:'Small',who:['uiux'], t:"Focus rings, nav button icons, pill active states", why:"Keyboard accessibility + polish on nav and SearchBox pills"},
+  {imp:'Med', eff:'Small',who:['uiux'], t:"Boost ScoreBar weight for projector legibility", why:"Bars are the primary magnitude cue; they fade at distance"},
+  {imp:'Med', eff:'Small',who:['learning'], t:"Add explicit learning objectives to SlideTitle", why:"Frames attention; raises transfer"},
+  {imp:'Med', eff:'Med',  who:['marketer'], t:"Business-case/ROI slide before ExplainKeyword", why:"Gives prospects a reason to care before technical detail"},
+  {imp:'Med', eff:'Med',  who:['marketer'], t:"Case-study / proof-point callout on Comparison", why:"Proof multiplies credibility"},
+  {imp:'Med', eff:'Med',  who:['marketer'], t:"“Services & Next Steps” slide after Takeaways", why:"Gives clients a clear engagement menu"},
+  {imp:'Med', eff:'Med',  who:['beginner'], t:"Worked example of the keyword scoring formula", why:"Makes the formula memorable"},
+  {imp:'High',eff:'Large',who:['advanced'], t:"Quantify sparse-vs-dense architecture", why:"Teaches the structural gap to TF-IDF vs BERT"},
+  {imp:'Med', eff:'Med',  who:['uiux'], t:"Dark / presentation mode toggle", why:"Projector legibility; feels like a real presentation tool"},
+];
+
+const ROADMAP = {
+  Now:["Branded footer + contact; CTA + founder line on SlideTitle","Empty demo boxes + prediction prompt (drop EXAMPLES auto-run)","prefers-reduced-motion support","Honest “semantic” relabel + IDF/stop-word analogy","Note 650ms is animation-only; tighten type; labeled “unique” badge"],
+  Next:["Vector/cosine-angle visual + co-occurrence “neighbors” analogy","Rewrite Takeaways with use cases + why blend","Services & Next Steps slide + ROI slide + proof point on Comparison","Upgrade chart + ScoreBar weight; focus states + nav icons","Failure-case demo + mention BM25"],
+  Later:["Interactive 2D vector-space explorer (cosine = angle, made visceral)","“Explain this ranking” per-term TF-IDF breakdown button","Hybrid search mode with keyword/semantic weighting slider","“Bring your own catalog” — paste real product titles","Sparse-vs-dense slide; dark mode; spaced-retrieval quiz"],
+};
+
+/* ---------- HELPERS ---------- */
+const C = {emerald:'emerald',indigo:'indigo',rose:'rose',amber:'amber',violet:'violet'};
+const personaColor = (k)=>({beginner:'emerald',advanced:'indigo',marketer:'rose',learning:'amber',uiux:'violet'}[k]);
+const personaName  = (k)=>({beginner:'Beginner',advanced:'Advanced',marketer:'Marketer',learning:'Learning Design',uiux:'UI/UX'}[k]);
+
+function Badge({children,tone}){
+  const tones={
+    High:'bg-rose-100 text-rose-700', Med:'bg-amber-100 text-amber-700', Low:'bg-slate-100 text-slate-600',
+    Small:'bg-emerald-100 text-emerald-700', Large:'bg-violet-100 text-violet-700',
+  };
+  return <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tones[children]||tones[tone]||'bg-slate-100 text-slate-600'}`}>{children}</span>;
+}
+function Chip({k}){
+  const c=personaColor(k);
+  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded bg-${c}-50 text-${c}-700 border border-${c}-100`}>{personaName(k)}</span>;
+}
+
+/* ---------- SECTIONS ---------- */
+function Hero(){
+  return (
+    <header className="bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 text-white">
+      <div className="max-w-5xl mx-auto px-6 py-14">
+        <span className="text-xs font-semibold tracking-[0.3em] text-indigo-300 uppercase">5-Persona Expert Review</span>
+        <h1 className="text-4xl md:text-5xl font-extrabold mt-3 leading-tight">Critique &amp; Project Goals</h1>
+        <p className="text-indigo-200 mt-1 text-lg">Semantic vs Keyword Search — interactive demo</p>
+        <p className="mt-6 max-w-3xl text-slate-200 leading-relaxed">
+          A genuinely polished single-file React presentation that makes the keyword-vs-semantic difference
+          <em> tangible</em>. The three biggest gaps are consistent across reviewers: it shows <strong>that</strong> the
+          algorithms differ without teaching <strong>why</strong>, it mislabels a statistical TF-IDF model as true
+          “semantic understanding,” and — for a portfolio piece — it makes <strong>Obsidian Software nearly
+          invisible</strong>. The single biggest opportunity: close the loop from <em>demonstration</em> to
+          <em> understanding</em> and <em> conversion</em>.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3 text-sm">
+          {[['🌱','Beginner'],['🎓','Advanced'],['📣','Marketer'],['🧩','Learning'],['🎨','UI/UX']].map(([i,n])=>(
+            <span key={n} className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur">{i} {n}</span>
+          ))}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Nav(){
+  const items=[['summary','Personas'],['themes','Themes'],['backlog','Backlog'],['roadmap','Roadmap'],['vision','Vision']];
+  return (
+    <nav className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 flex gap-1 overflow-x-auto">
+        {items.map(([id,label])=>(
+          <a key={id} href={`#${id}`} className="px-4 py-3 text-sm font-medium text-slate-600 hover:text-indigo-600 whitespace-nowrap">{label}</a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function PersonaCards(){
+  const [open,setOpen]=useState('beginner');
+  return (
+    <section id="summary" className="max-w-5xl mx-auto px-6 py-12">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Per-Persona Critique</h2>
+      <p className="text-slate-500 mb-6 text-sm">Click a persona to expand their full take.</p>
+      <div className="space-y-3">
+        {PERSONAS.map(p=>{
+          const isOpen=open===p.key, c=p.color;
+          return (
+            <div key={p.key} className={`rounded-xl border bg-white overflow-hidden transition-all ${isOpen?`border-${c}-300 shadow-md`:'border-slate-200'}`}>
+              <button onClick={()=>setOpen(isOpen?'':p.key)} className="w-full flex items-center gap-3 px-5 py-4 text-left">
+                <span className="text-2xl">{p.icon}</span>
+                <span className="font-semibold text-slate-800 flex-1">{p.name}</span>
+                <span className={`text-${c}-500 transition-transform ${isOpen?'rotate-180':''}`}>▾</span>
+              </button>
+              {isOpen&&(
+                <div className="px-5 pb-5 fade">
+                  <p className="text-sm text-slate-600 italic border-l-2 border-slate-200 pl-3 mb-4">{p.take}</p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-600 mb-2">✓ Strengths</h4>
+                      <ul className="space-y-1.5 text-sm text-slate-600">{p.strengths.map((s,i)=><li key={i} className="flex gap-2"><span className="text-emerald-500">•</span>{s}</li>)}</ul>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-rose-600 mb-2">✗ Weaknesses</h4>
+                      <ul className="space-y-1.5 text-sm text-slate-600">{p.weaknesses.map((s,i)=><li key={i} className="flex gap-2"><span className="text-rose-400">•</span>{s}</li>)}</ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Themes(){
+  return (
+    <section id="themes" className="bg-white border-y border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-1">Cross-Cutting Themes</h2>
+        <p className="text-slate-500 mb-6 text-sm">Independently raised by multiple personas — the highest-signal issues.</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          {THEMES.map((th,i)=>(
+            <div key={i} className="rounded-xl border border-slate-200 p-5 hover:shadow-sm transition-shadow">
+              <div className="flex items-start gap-3">
+                <span className="flex-none w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold grid place-items-center">{i+1}</span>
+                <div>
+                  <h3 className="font-semibold text-slate-800">{th.t}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{th.d}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-3">{th.who.map(w=><Chip key={w} k={w}/>)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Backlog(){
+  const [impF,setImpF]=useState('All');
+  const [persF,setPersF]=useState('all');
+  const order={High:0,Med:1,Low:2}, effOrder={Small:0,Med:1,Large:2};
+  const rows=useMemo(()=>BACKLOG
+    .filter(r=>impF==='All'||r.imp===impF)
+    .filter(r=>persF==='all'||r.who.includes(persF))
+    .sort((a,b)=>order[a.imp]-order[b.imp]||effOrder[a.eff]-effOrder[b.eff]),[impF,persF]);
+
+  const impBtns=['All','High','Med'];
+  const persBtns=[['all','All'],['beginner','🌱'],['advanced','🎓'],['marketer','📣'],['learning','🧩'],['uiux','🎨']];
+  return (
+    <section id="backlog" className="max-w-5xl mx-auto px-6 py-12">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Prioritized Improvement Backlog</h2>
+      <p className="text-slate-500 mb-5 text-sm">Merged &amp; de-duplicated across all personas. Sorted by impact, then ascending effort. <span className="text-slate-400">Showing {rows.length} of {BACKLOG.length}.</span></p>
+
+      <div className="flex flex-wrap items-center gap-4 mb-5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium">Impact</span>
+          {impBtns.map(b=>(
+            <button key={b} onClick={()=>setImpF(b)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${impF===b?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{b}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium">Persona</span>
+          {persBtns.map(([k,l])=>(
+            <button key={k} onClick={()=>setPersF(k)} title={k==='all'?'All':personaName(k)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${persF===k?'bg-indigo-600 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {rows.map((r,i)=>(
+          <div key={i} className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-sm transition-shadow fade">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-semibold text-slate-800 text-[15px]">{r.t}</h3>
+              <div className="flex-none flex gap-1.5">
+                <Badge>{r.imp}</Badge><Badge>{r.eff}</Badge>
+              </div>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">{r.why}</p>
+            <div className="flex flex-wrap gap-1.5 mt-2.5">{r.who.map(w=><Chip key={w} k={w}/>)}</div>
+          </div>
+        ))}
+        {rows.length===0&&<div className="text-center text-slate-400 py-10">No items match those filters.</div>}
+      </div>
+    </section>
+  );
+}
+
+function Roadmap(){
+  const cols=[
+    {k:'Now',  sub:'Quick wins — small effort, high payoff', c:'emerald', tag:'⚡'},
+    {k:'Next', sub:'Core teaching + selling upgrade', c:'indigo', tag:'🛠️'},
+    {k:'Later',sub:'Ambitious / wow', c:'violet', tag:'🚀'},
+  ];
+  return (
+    <section id="roadmap" className="bg-white border-y border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Project Goals &amp; Roadmap</h2>
+        <div className="grid md:grid-cols-3 gap-5">
+          {cols.map(col=>(
+            <div key={col.k} className={`rounded-2xl border-2 border-${col.c}-200 bg-${col.c}-50/40 p-5`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xl">{col.tag}</span>
+                <h3 className={`text-lg font-bold text-${col.c}-700`}>{col.k}</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">{col.sub}</p>
+              <ul className="space-y-2.5">
+                {ROADMAP[col.k].map((g,i)=>(
+                  <li key={i} className="text-sm text-slate-700 flex gap-2">
+                    <span className={`flex-none mt-1 w-1.5 h-1.5 rounded-full bg-${col.c}-500`}></span>{g}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Vision(){
+  return (
+    <section id="vision" className="max-w-5xl mx-auto px-6 py-14">
+      <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900 text-white p-8 md:p-10">
+        <h2 className="text-xl font-bold text-indigo-300 mb-3">★ North-Star Vision</h2>
+        <p className="text-lg leading-relaxed text-slate-100">
+          A single, self-contained interactive artifact that a beginner finishes <em>understanding</em> — not just seeing —
+          why semantic search surfaces an “affordable sofa” you never named, with an intuitive grasp of vectors,
+          cosine angle, and when each method wins. It is intellectually honest enough that an IR expert nods at the framing,
+          and crafted and branded well enough that a prospect immediately knows <strong>Obsidian Software</strong> built it,
+          why search relevance moves revenue, and exactly how to start a conversation.
+        </p>
+        <p className="mt-4 text-2xl font-bold bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">
+          The demo is the pitch: it teaches brilliantly and sells the brand in the same breath.
+        </p>
+      </div>
+      <p className="text-center text-xs text-slate-400 mt-8">Synthesized from a 5-persona multi-agent review · Obsidian Software</p>
+    </section>
+  );
+}
+
+function App(){
+  return (<div><Hero/><Nav/><PersonaCards/><Themes/><Backlog/><Roadmap/><Vision/></div>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
