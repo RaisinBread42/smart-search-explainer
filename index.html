@@ -73,7 +73,15 @@
 const { useState, useEffect, useMemo, useRef } = React;
 const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Cell } = Recharts;
 
-const BRAND = { name: 'Obsidian Software', founder: 'Shannon Williams', email: 'williamsshannonj@gmail.com' };
+const BRAND = {
+  name: 'Obsidian Software',
+  founder: 'Shannon Williams',
+  email: 'williamsshannonj@gmail.com',
+  // Optional: drop in a Calendly/Cal.com link to make the CTA one-click.
+  // Leave '' and the "Book an audit" button falls back to a pre-filled email.
+  bookingUrl: '',
+};
+const bookHref = BRAND.bookingUrl || `mailto:${BRAND.email}?subject=${encodeURIComponent('15-min search audit')}&body=${encodeURIComponent("Hi Shannon — I saw the search demo. I'd like a 15-minute look at our search. Here's our site/catalog: ")}`;
 
 /* ============================================================
    1. SAMPLE DATASET  (60 items: marketplace + a few news)
@@ -182,6 +190,10 @@ function buildModel(items){
   docToks.forEach((ts) => { new Set(ts).forEach((t) => { df[t] = (df[t]||0)+1; }); });
   const N = items.length;
   const idf = {};
+  // Smoothed IDF: log((N+1)/(df+1)) is the standard "add-one" smoothing (avoids
+  // divide-by-zero and over-rewarding once-seen words on a tiny corpus); the
+  // trailing +1 floor keeps every term's weight positive so common words still
+  // count a little rather than dropping to zero.
   Object.keys(df).forEach((t) => { idf[t] = Math.log((N+1)/(df[t]+1)) + 1; });
 
   const tfidf = (toks) => {
@@ -199,13 +211,24 @@ function buildModel(items){
     uniq.forEach((a) => {
       co[a] = co[a] || {};
       uniq.forEach((b) => { if (a !== b) co[a][b] = (co[a][b]||0) + idf[b]; });
-      co[a][a] = (co[a][a]||0) + idf[a]*1.5; // anchor on the word itself
+      // Self-anchor (1.5×): a word is always its own strongest neighbor. Without
+      // this, two words that never co-occur but share neighbors could outrank an
+      // exact match. 1.5 keeps the literal term dominant while still allowing
+      // synonyms to pull weight. (Tunable dial, not a magic constant.)
+      co[a][a] = (co[a][a]||0) + idf[a]*1.5;
     });
   });
   const termVec = {};
   Object.keys(co).forEach((t) => { termVec[t] = normalize(co[t]); });
 
-  // distributional + literal blend → a lightweight "embedding"
+  // A document/query "embedding" = blend of two signals:
+  //   • distributional (weight 1.0): the sum of its words' co-occurrence vectors
+  //     — this is what lets "cheap" pull in "budget"/"affordable".
+  //   • literal TF-IDF (weight 0.7): anchors the vector to the actual words typed
+  //     so exact matches still rank highest.
+  // The 1.0 / 0.7 ratio leans toward meaning while keeping literal matches honest;
+  // it's the one dial most worth tuning per catalog. (A production system would
+  // expose this as a hybrid-search weight — see the Takeaways slide.)
   const embed = (toks) => {
     const dist = {};
     toks.forEach((t) => { if (termVec[t]) addInto(dist, termVec[t], idf[t] || 1); });
@@ -219,6 +242,19 @@ function buildModel(items){
   return { df, idf, termVec, embed, docVectors, vocabSize: Object.keys(df).length };
 }
 const MODEL = buildModel(DATASET);
+
+// The words the model "learned" are closest in meaning to a given word —
+// i.e. the ones that keep the most similar company across the catalog.
+function topNeighbors(word, k = 5){
+  const tv = MODEL.termVec[word];
+  if (!tv) return [];
+  return Object.keys(MODEL.termVec)
+    .filter((o) => o !== word && MODEL.df[o] >= 2)
+    .map((o) => ({ word: o, sim: cosine(tv, MODEL.termVec[o]) }))
+    .filter((r) => r.sim > 0.1)
+    .sort((a, b) => b.sim - a.sim)
+    .slice(0, k);
+}
 
 /* ============================================================
    3. SEARCH ALGORITHMS
@@ -312,8 +348,9 @@ function ScoreBar({ score, color = 'indigo', delay = 0 }){
   );
 }
 
-function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, delay, footer, related, uniqueLabel }){
+function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, delay, footer, explain, uniqueLabel }){
   const [why, setWhy] = useState(false);
+  const whyColor = accent === 'emerald' ? 'text-emerald-700 hover:text-emerald-900' : 'text-indigo-700 hover:text-indigo-900';
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 animate-scanIn hover:shadow-md transition-shadow"
          style={{ animationDelay: `${delay}ms` }}>
@@ -334,20 +371,20 @@ function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, del
         <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CAT_COLORS[item.category]}`}>{item.category}</span>
         <div className="flex items-center gap-2">
           {footer}
-          {related && related.length > 0 && (
-            <button onClick={() => setWhy(!why)} className="text-[11px] font-medium text-emerald-700 hover:text-emerald-900 underline decoration-dotted">
+          {explain && explain.chips.length > 0 && (
+            <button onClick={() => setWhy(!why)} className={`text-[11px] font-medium underline decoration-dotted ${whyColor}`}>
               {why ? 'hide' : 'why ranked?'}
             </button>
           )}
         </div>
       </div>
-      {why && related && (
+      {why && explain && (
         <div className="mt-3 pt-3 border-t border-slate-100 animate-scanIn">
-          <p className="text-[11px] text-slate-400 mb-1.5">Top signals connecting this listing to your query:</p>
+          <p className="text-[11px] text-slate-400 mb-1.5">{explain.caption}</p>
           <div className="flex flex-wrap gap-1.5">
-            {related.map((r, i) => (
-              <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full ${r.literal ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-slate-100 text-slate-600'}`}>
-                {r.term}{!r.literal && <span className="text-slate-400"> · related</span>}
+            {explain.chips.map((c, i) => (
+              <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full ${c.strong ? (accent === 'emerald' ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-indigo-100 text-indigo-800 font-semibold') : 'bg-slate-100 text-slate-600'}`}>
+                {c.text}{c.suffix && <span className="text-slate-400"> · {c.suffix}</span>}
               </span>
             ))}
           </div>
@@ -379,17 +416,6 @@ function SearchBox({ query, setQuery, onSearch, accent, examples }){
             className="text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">{ex}</button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function PredictPrompt({ accent }){
-  const c = accent === 'emerald' ? 'emerald' : 'indigo';
-  return (
-    <div className={`flex flex-col items-center justify-center py-14 gap-3 text-center animate-scanIn`}>
-      <div className={`text-4xl animate-floatY`}>🤔</div>
-      <p className="text-slate-600 font-medium">Before you search — <span className={`text-${c}-600`}>predict</span> the #1 result.</p>
-      <p className="text-sm text-slate-400 max-w-sm">Make a guess and say <em>why</em> out loud. Predicting first is what makes the reveal stick. Then hit a chip above or type your own.</p>
     </div>
   );
 }
@@ -441,7 +467,10 @@ function SlideTitle(){
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-slate-600">
           Two ways to find things in the same {DATASET.length}-listing marketplace. One matches <strong>words</strong>;
-          the other compares <strong>meaning</strong>. We'll run both live and watch where they agree — and where they don't.
+          the other <strong>approximates meaning</strong> from word patterns. We'll run both live and watch where they agree — and where they don't.
+        </p>
+        <p className="mt-3 max-w-2xl text-sm text-slate-400">
+          (Our “semantic” engine learns from these {DATASET.length} listings in your browser — a miniature of the neural models real search trains on <em>billions</em> of sentences. Same idea, tiny scale.)
         </p>
         <div className="mt-8 max-w-xl w-full bg-white/70 border border-slate-200 rounded-xl p-4 text-left">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">By the end you'll be able to…</p>
@@ -472,7 +501,12 @@ function WhyItMatters(){
       <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
         <span className="text-xs font-semibold tracking-[0.25em] text-indigo-500 uppercase">Why this matters</span>
         <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mt-2 mb-3">Search <em>is</em> the storefront</h2>
-        <p className="text-slate-600 max-w-2xl mb-8">When a shopper types what they mean and gets nothing back, that's lost revenue — not a technical footnote. Relevance is a growth lever.</p>
+        <div className="mb-6 max-w-2xl bg-indigo-50 border-l-4 border-indigo-400 rounded-r-lg p-4">
+          <p className="text-sm text-slate-700">
+            <span className="font-semibold">Picture this:</span> you search a furniture store for <span className="font-mono bg-white px-1.5 py-0.5 rounded text-indigo-700">comfy couch under $400</span> — and get a $6,000 leather sectional, because it had the word “couch.” Frustrated, you leave. That shopper was <em>you</em>, and that's a sale the store just lost to bad matching.
+          </p>
+        </div>
+        <p className="text-slate-600 max-w-2xl mb-8">When a shopper types what they <em>mean</em> and gets back what merely <em>matches</em>, that's lost revenue — not a technical footnote. Relevance is a growth lever:</p>
         <div className="grid md:grid-cols-3 gap-4">
           {stats.map((s) => (
             <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-6">
@@ -495,12 +529,14 @@ function ExplainKeyword(){
     <SlideShell>
       <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
         <h2 className="text-3xl font-bold text-slate-900 mb-2">How Keyword Search Works</h2>
-        <p className="text-slate-600 mb-6">It looks for the <strong>literal words</strong> you typed — no notion of meaning, just matching and counting.</p>
-        <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <p className="text-slate-600 mb-5 max-w-3xl">
+          Imagine handing each listing a <strong>checklist of your words</strong> and asking: how many can you tick off? The more it ticks — especially in its <strong>title</strong> — the higher it ranks. That's the whole idea. No understanding of meaning, just careful counting.
+        </p>
+        <div className="grid md:grid-cols-3 gap-4 mb-5">
           {[
-            { n:'1', t:'Split & clean', d:'Break "wooden desk" into wooden + desk, and drop filler words like the, for, with (called stop words — they match everything, so they add noise).' },
-            { n:'2', t:'Match & weight', d:'Count matches per listing. A hit in the title counts 2× a hit in the body — titles are stronger relevance signals.' },
-            { n:'3', t:'Score 0–100', d:'Normalize by query length; add a bonus when the exact phrase appears.' },
+            { n:'1', t:'Tidy up the query', d:'“wooden desk” becomes two words to look for: wooden, desk. We skip filler words like the, for, with — they show up in almost every listing, so they’re no help. (Search people call these “stop words.”)' },
+            { n:'2', t:'Tick the boxes', d:'For each listing, count how many of your words appear. A word in the title counts double a word buried in the description — a title hit is a stronger sign the listing is really about that thing.' },
+            { n:'3', t:'Turn it into a %', d:'Compare the ticks to a perfect score (every word, in the title) to get 0–100. Find your exact phrase word-for-word? A small bonus on top.' },
           ].map((s) => (
             <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white font-bold grid place-items-center mb-3">{s.n}</div>
@@ -509,45 +545,107 @@ function ExplainKeyword(){
             </div>
           ))}
         </div>
-        <div className="bg-slate-900 rounded-xl p-5 font-mono text-sm text-slate-200">
-          <span className="text-indigo-300">score</span> = ( bodyMatches + <span className="text-amber-300">titleMatches × 2</span> ) / (queryWords × 2) × 100 &nbsp;<span className="text-slate-500">(+25 phrase bonus)</span>
-          <div className="text-slate-400 mt-2 text-xs">Worked example — query <span className="text-slate-200">"wooden desk"</span> (2 words) on <span className="text-slate-200">"Vintage wooden writing desk"</span>: both words hit the title → (0 + 2×2)/(2×2) = <span className="text-emerald-300">100%</span>.</div>
-        </div>
-        <p className="mt-5 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          ⚠️ The catch: it can't tell <em>category</em> from <em>coincidence</em>. Search "budget audio" and a "<em>budget-friendly fabric sofa</em>" scores as high as real earbuds — it only saw the word "budget."
+        <details className="bg-slate-900 rounded-xl p-4 text-sm text-slate-200 group">
+          <summary className="cursor-pointer text-slate-300 font-medium select-none">Want the exact formula? <span className="text-slate-500 font-normal group-open:hidden">(optional)</span></summary>
+          <div className="mt-3 font-mono">
+            <span className="text-indigo-300">score</span> = ( bodyMatches + <span className="text-amber-300">titleMatches × 2</span> ) / (queryWords × 2) × 100 &nbsp;<span className="text-slate-500">(+25 phrase bonus)</span>
+          </div>
+          <div className="text-slate-400 mt-2 text-xs">Worked example — “wooden desk” (2 words) on “Vintage wooden writing desk”: both words hit the title → (0 + 2×2)/(2×2) = <span className="text-emerald-300">100%</span>.</div>
+        </details>
+        <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          ⚠️ The catch: it can't tell <em>category</em> from <em>coincidence</em>. Search “budget audio” and a “<em>budget-friendly fabric sofa</em>” scores as high as real earbuds — it only saw the word “budget.”
         </p>
-        <p className="mt-3 text-xs text-slate-400">↳ Real engines (Elasticsearch, Lucene) use a refined version of this called <strong>BM25</strong>, which dampens repeated words and adjusts for document length. Same family — just tuned.</p>
+        <p className="mt-3 text-xs text-slate-400">↳ Real engines (Elasticsearch, Lucene) use a battle-tested version called <strong>BM25</strong>. Its key insight: the <em>10th</em> mention of a word shouldn't count as much as the 1st (“term saturation”), and longer documents shouldn't win just for being long. Same checklist spirit — smarter counting.</p>
+      </div>
+    </SlideShell>
+  );
+}
+
+function PredictionGate({ accent, guess, setGuess, onCommit }){
+  const c = accent === 'emerald' ? 'emerald' : 'indigo';
+  const commit = () => { if (guess.trim()) onCommit(); };
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 animate-scanIn">
+      <div className="text-4xl animate-floatY">🤔</div>
+      <h3 className="text-xl font-semibold text-slate-800">First, make a prediction</h3>
+      <p className="text-sm text-slate-500 max-w-md">Committing a guess <em>before</em> the reveal is what makes it stick. What kind of listing do you think will rank <strong>#1</strong> — and why? Jot it down, then unlock the demo.</p>
+      <div className="flex gap-2 w-full max-w-md mt-2">
+        <input
+          value={guess}
+          onChange={(e) => setGuess(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && commit()}
+          placeholder="e.g. the cheapest sofa…"
+          className={`flex-1 px-4 py-3 rounded-lg border border-slate-300 text-slate-800 outline-none focus:ring-2 focus:ring-${c}-400`}
+        />
+        <button onClick={commit} disabled={!guess.trim()}
+          className={`px-5 py-3 rounded-lg text-white font-semibold bg-${c}-600 hover:bg-${c}-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}>
+          Lock it in →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LiveDemo({ searchFn, accent, examples, scoreLabel, headline, sub, emptyMsg, makeHighlight, makeFooter, makeExplain }){
+  const [guess, setGuess] = useState('');
+  const [committed, setCommitted] = useState(false);
+  const s = useSearch(searchFn);
+  const c = accent === 'emerald' ? 'emerald' : 'indigo';
+  const reset = () => { setCommitted(false); setGuess(''); s.run(''); };
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">{headline}</h2>
+        <p className="text-slate-500 mb-5 text-sm">{sub}</p>
+        {!committed
+          ? <PredictionGate accent={accent} guess={guess} setGuess={setGuess} onCommit={() => setCommitted(true)} />
+          : (
+          <>
+            <div className="mb-3 flex items-center gap-2 text-sm flex-wrap animate-scanIn">
+              <span className="text-slate-400">You predicted #1:</span>
+              <span className={`font-medium px-2 py-0.5 rounded-full bg-${c}-50 text-${c}-700`}>“{guess}”</span>
+              <button onClick={reset} className="text-xs text-slate-400 underline hover:text-slate-600">change</button>
+            </div>
+            <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent={accent} examples={examples} />
+            <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
+              {!s.scanning && s.results === null && (
+                <div className="text-center py-14 text-slate-400">Now run a search — was your hunch right? 👆</div>
+              )}
+              {s.scanning && <Scanning accent={accent} />}
+              {!s.scanning && s.results && s.results.length === 0 && (
+                <div className="text-center py-16 text-slate-400">{emptyMsg}</div>
+              )}
+              {!s.scanning && s.results && s.results.map((r, i) => (
+                <ResultCard key={r.item.id} rank={i+1} item={r.item} score={r.score} scoreLabel={scoreLabel} accent={accent} delay={i*80}
+                  highlightWords={makeHighlight(r)} footer={makeFooter(r)} explain={makeExplain(r)} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </SlideShell>
   );
 }
 
 function DemoKeyword(){
-  const s = useSearch(keywordSearch);
-  return (
-    <SlideShell>
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
-        <h2 className="text-3xl font-bold text-slate-900 mb-1">Keyword Search — Live</h2>
-        <p className="text-slate-500 mb-5 text-sm">Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. It only finds listings that <em>literally contain</em> your words.</p>
-        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="indigo" examples={EXAMPLES.keyword} />
-        <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
-          {!s.scanning && s.results === null && <PredictPrompt accent="indigo" />}
-          {s.scanning && <Scanning accent="indigo" />}
-          {!s.scanning && s.results && s.results.length === 0 && (
-            <div className="text-center py-16 text-slate-400">No listings contain those exact words. Watch what semantic does with the same idea →</div>
-          )}
-          {!s.scanning && s.results && s.results.map((r, i) => (
-            <ResultCard key={r.item.id} rank={i+1} item={r.item} score={r.score} scoreLabel="keyword" accent="indigo" delay={i*80}
-              highlightWords={r.matched.map((m) => m.word)}
-              footer={<span className="text-xs text-slate-400">
-                {r.matched.filter((m) => m.where === 'title').length > 0 && <span className="text-indigo-600 font-medium">title match · </span>}
-                {r.matched.length} word{r.matched.length !== 1 ? 's' : ''}{r.phraseHit && ' · phrase bonus'}
-              </span>} />
-          ))}
-        </div>
-      </div>
-    </SlideShell>
-  );
+  return <LiveDemo
+    searchFn={keywordSearch} accent="indigo" examples={EXAMPLES.keyword} scoreLabel="keyword"
+    headline="Keyword Search — Live"
+    sub={<>Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. Hit <strong>"why ranked?"</strong> to see exactly which words earned the score. It only finds listings that <em>literally contain</em> your words.</>}
+    emptyMsg="No listings contain those exact words. Watch what semantic does with the same idea →"
+    makeHighlight={(r) => r.matched.map((m) => m.word)}
+    makeFooter={(r) => <span className="text-xs text-slate-400">
+      {r.matched.filter((m) => m.where === 'title').length > 0 && <span className="text-indigo-600 font-medium">title match · </span>}
+      {r.matched.length} word{r.matched.length !== 1 ? 's' : ''}{r.phraseHit && ' · phrase bonus'}
+    </span>}
+    makeExplain={(r) => ({
+      caption: 'How this score was built (title hits count double):',
+      chips: [
+        ...r.matched.map((m) => ({ text: m.word, strong: m.where === 'title', suffix: m.where === 'title' ? 'in title ×2' : 'in description' })),
+        ...(r.phraseHit ? [{ text: 'exact phrase found', strong: true, suffix: '+25 bonus' }] : []),
+      ],
+    })}
+  />;
 }
 
 function CosineVisual(){
@@ -586,21 +684,53 @@ function CosineVisual(){
   );
 }
 
+function NeighborsGrid(){
+  const words = ['affordable', 'couch', 'wireless', 'desk', 'music'];
+  const [w, setW] = useState('affordable');
+  const ns = useMemo(() => topNeighbors(w, 5), [w]);
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <p className="text-sm text-slate-600 mb-3"><strong>See what it actually learned.</strong> Pick a word — these are the words the model decided are closest in meaning, purely from noticing which words share listings. No dictionary, no synonym list given to it:</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {words.map((x) => (
+          <button key={x} onClick={() => setW(x)}
+            className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${x === w ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{x}</button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-bold text-slate-800 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">{w}</span>
+        <span className="text-slate-300 text-lg">≈</span>
+        {ns.map((n) => (
+          <span key={n.word} className="text-sm px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 animate-scanIn"
+            style={{ opacity: 0.5 + n.sim*0.5 }}>
+            {n.word}<span className="text-[10px] text-slate-400 ml-1 tabular-nums">{n.sim.toFixed(2)}</span>
+          </span>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-400 mt-3">It taught itself that <em>affordable ≈ cheap ≈ budget</em> — which is exactly why it can match a query keyword search would miss.</p>
+    </div>
+  );
+}
+
 function ExplainSemantic(){
   return (
     <SlideShell>
-      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
-        <div className="flex items-center gap-3 mb-2">
+      <div className="flex-1 flex flex-col max-w-5xl mx-auto px-6 overflow-y-auto py-2">
+        <div className="flex flex-wrap items-center gap-3 mb-1">
           <h2 className="text-3xl font-bold text-slate-900">How Semantic Search Works</h2>
-          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">TF-IDF model · not neural embeddings</span>
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">a TF-IDF model — not neural embeddings</span>
         </div>
-        <p className="text-slate-600 mb-5">It compares <strong>meaning</strong> over spelling. Words that keep similar company in the catalog become “neighbors” — so <em>cheap</em>, <em>budget</em>, and <em>affordable</em> end up close together, even though they're different words.</p>
-        <div className="grid md:grid-cols-2 gap-5 items-center">
+        <p className="text-xs text-slate-400 mb-3">(“TF-IDF” is just a fancy name for: score words by how often they show up, but turn down the volume on words that appear everywhere.)</p>
+        <p className="text-slate-600 mb-4 max-w-3xl">Instead of matching letters, it asks “do these <em>mean</em> the same thing?” The trick: words that keep similar company in the catalog are treated as <strong>neighbors</strong> — so <em>cheap</em>, <em>budget</em>, and <em>affordable</em> end up close together, even though they share no letters.</p>
+
+        <NeighborsGrid />
+
+        <div className="grid md:grid-cols-2 gap-5 items-center mt-5">
           <div className="space-y-3">
             {[
-              { n:'1', t:'Learn word neighbors', d:'From the listings themselves: words that co-occur (sofa + couch + living room) get similar vectors. The model "learns" affordable ≈ budget ≈ cheap from how they\'re used.' },
-              { n:'2', t:'Weight by rarity (IDF)', d:'Rare words like mirrorless are strong signals; common ones like home are weak. Like a detective: an unusual clue matters more than one everyone shares.' },
-              { n:'3', t:'Compare by angle', d:'Turn query and listing into vectors, then measure the cosine of the angle between them →' },
+              { n:'1', t:'Learn word neighbors', d:'Straight from the listings: words that show up together (sofa, couch, living room) get treated as related. Nobody handed it a synonym list — it noticed, exactly like the grid above.' },
+              { n:'2', t:'Trust rare words more', d:'A rare word like mirrorless is a strong clue; a common one like home barely helps. Like a detective: an unusual fingerprint matters more than a common one. (Pros call this rarity weighting “IDF.”)' },
+              { n:'3', t:'Compare by angle', d:'Each query and listing becomes a list of numbers (a “vector”). How aligned are they? Measure the angle between them →' },
             ].map((s) => (
               <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex gap-3">
@@ -613,7 +743,7 @@ function ExplainSemantic(){
           <CosineVisual />
         </div>
         <p className="mt-5 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-          ✅ Honest framing: this is the <em>same core idea</em> as the neural embeddings behind ChatGPT-era search (word2vec, BERT) — just a lightweight version computed entirely in your browser. Real systems learn richer meaning from billions of sentences.
+          ✅ Honest framing: this is the <em>same core idea</em> as the neural embeddings behind modern AI search (word2vec, BERT) — just a lightweight version computed in your browser from {DATASET.length} listings. Real systems learn far richer meaning from <em>billions</em> of sentences.
         </p>
       </div>
     </SlideShell>
@@ -621,28 +751,18 @@ function ExplainSemantic(){
 }
 
 function DemoSemantic(){
-  const s = useSearch(semanticSearch);
-  return (
-    <SlideShell>
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
-        <h2 className="text-3xl font-bold text-slate-900 mb-1">Semantic Search — Live</h2>
-        <p className="text-slate-500 mb-5 text-sm">Scores are cosine similarity. Hit <strong>"why ranked?"</strong> on any card to see the related words that connected it — including ones you never typed.</p>
-        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="emerald" examples={EXAMPLES.semantic} />
-        <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
-          {!s.scanning && s.results === null && <PredictPrompt accent="emerald" />}
-          {s.scanning && <Scanning accent="emerald" />}
-          {!s.scanning && s.results && s.results.length === 0 && (
-            <div className="text-center py-16 text-slate-400">No semantic matches — the query shares no known words with the catalog.</div>
-          )}
-          {!s.scanning && s.results && s.results.map((r, i) => (
-            <ResultCard key={r.item.id} rank={i+1} item={r.item} score={r.score} scoreLabel="similarity" accent="emerald" delay={i*80}
-              highlightWords={[]} related={r.related}
-              footer={<span className="text-xs text-slate-400">cosine {r.sim.toFixed(3)}</span>} />
-          ))}
-        </div>
-      </div>
-    </SlideShell>
-  );
+  return <LiveDemo
+    searchFn={semanticSearch} accent="emerald" examples={EXAMPLES.semantic} scoreLabel="similarity"
+    headline="Semantic Search — Live"
+    sub={<>Scores are cosine similarity. Hit <strong>"why ranked?"</strong> to see the related words that connected each listing — including ones you never typed. <span className="text-emerald-700">But is meaning <em>always</em> better than literal matching? Hold that thought →</span></>}
+    emptyMsg="No semantic matches — the query shares no known words with the catalog."
+    makeHighlight={() => []}
+    makeFooter={(r) => <span className="text-xs text-slate-400">cosine {r.sim.toFixed(3)}</span>}
+    makeExplain={(r) => ({
+      caption: 'Words that linked this listing to your query (some you never typed):',
+      chips: r.related.map((rr) => ({ text: rr.term, strong: rr.literal, suffix: rr.literal ? 'you typed this' : 'appeared alongside your words' })),
+    })}
+  />;
 }
 
 function Comparison(){
@@ -831,6 +951,7 @@ function Takeaways(){
         <div className="mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-6 text-white text-center">
           <p className="text-lg font-bold">💡 The real answer is <span className="underline decoration-white/40">both</span> — hybrid search</p>
           <p className="text-sm text-indigo-100 mt-2 max-w-2xl mx-auto">Production systems cast a wide net with semantic <em>recall</em>, then re-rank with keyword <em>precision</em> (and signals like popularity). Keyword for the exact, semantic for the intent — fused into one ranking.</p>
+          <p className="text-xs text-indigo-200/90 mt-3 max-w-2xl mx-auto">(In fact, the live demos already blend them — about 40% literal, 60% meaning. {BRAND.name} tunes that mix for catalogs from 10k to 10M+ items.)</p>
         </div>
       </div>
     </SlideShell>
@@ -838,30 +959,47 @@ function Takeaways(){
 }
 
 function CTA(){
+  const pains = [
+    'Shoppers search in plain language and get the wrong category back',
+    'Your “no results found” page gets more traffic than you’d like',
+    'You suspect search is leaking sales but can’t see where',
+  ];
   return (
     <SlideShell>
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center text-white text-2xl font-bold mb-6 animate-floatY">◆</div>
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 overflow-y-auto py-3">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center text-white text-2xl font-bold mb-5 animate-floatY">◆</div>
         <span className="text-xs font-semibold tracking-[0.3em] text-indigo-500 uppercase">{BRAND.name}</span>
-        <h2 className="text-4xl font-extrabold text-slate-900 mt-3 max-w-2xl">Search your customers can actually talk to</h2>
-        <p className="mt-4 max-w-xl text-slate-600">This whole demo runs client-side in a single file — no servers, no API keys. {BRAND.name} builds search and AI experiences like this into real products, from prototype to production.</p>
-        <div className="mt-8 grid sm:grid-cols-3 gap-3 max-w-2xl w-full">
-          {[
-            { t:'Search audits', d:'Find the queries quietly losing you sales' },
-            { t:'Hybrid search', d:'Keyword + semantic, tuned to your catalog' },
-            { t:'Interactive demos', d:'Explainers like this for your own product' },
-          ].map((c) => (
-            <div key={c.t} className="bg-white rounded-xl border border-slate-200 p-4 text-left">
-              <h3 className="font-semibold text-slate-800 text-sm">{c.t}</h3>
-              <p className="text-xs text-slate-500 mt-1">{c.d}</p>
+        <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mt-3 max-w-2xl">Search your customers can actually talk to</h2>
+        <p className="mt-3 max-w-xl text-slate-600">This entire demo runs client-side in one file. {BRAND.name} builds search and AI like this into real products — from prototype to production.</p>
+
+        {/* Illustrative proof strip */}
+        <div className="mt-6 grid grid-cols-3 gap-3 max-w-2xl w-full">
+          {[['−83%','fewer “no results” queries'],['+9%','search→cart conversion'],['2 wks','from audit to live A/B test']].map(([n,d]) => (
+            <div key={n} className="bg-white rounded-xl border border-slate-200 p-4">
+              <div className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">{n}</div>
+              <p className="text-[11px] text-slate-500 mt-1 leading-tight">{d}</p>
             </div>
           ))}
         </div>
-        <a href={`mailto:${BRAND.email}?subject=Let's%20talk%20search`}
-           className="mt-8 px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shadow-lg shadow-indigo-600/20">
-          Let's talk search →
+        <p className="text-[10px] text-slate-400 mt-1.5">Illustrative outcomes from typical hybrid-search engagements.</p>
+
+        {/* Pain checklist */}
+        <div className="mt-6 max-w-xl w-full bg-white border border-slate-200 rounded-xl p-5 text-left">
+          <p className="text-sm font-semibold text-slate-800 mb-2">Sound familiar?</p>
+          <ul className="space-y-1.5">
+            {pains.map((p) => <li key={p} className="text-sm text-slate-600 flex gap-2"><span className="text-indigo-500">☐</span>{p}</li>)}
+          </ul>
+          <p className="text-sm text-slate-700 mt-3">If you ticked one, a 15-minute audit will probably pay for itself.</p>
+        </div>
+
+        <a href={bookHref}
+           className="mt-6 px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shadow-lg shadow-indigo-600/20">
+          Book a 15-min search audit →
         </a>
-        <p className="mt-4 text-sm text-slate-400">{BRAND.founder} · <a className="text-indigo-600 hover:underline" href={`mailto:${BRAND.email}`}>{BRAND.email}</a></p>
+        <p className="mt-3 text-sm text-slate-400">
+          {BRAND.founder} · <a className="text-indigo-600 hover:underline" href={`mailto:${BRAND.email}`}>{BRAND.email}</a>
+          <span className="text-slate-300"> · prefer a call or LinkedIn? just ask</span>
+        </p>
       </div>
     </SlideShell>
   );
@@ -900,7 +1038,15 @@ function App(){
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
-      <div className="flex-none flex items-center justify-center gap-1.5 pt-4">
+      {/* Persistent top bar: brand + keyboard hint + always-on contact */}
+      <div className="flex-none flex items-center justify-between px-4 sm:px-6 pt-3">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 text-sm">
+          <span className="text-indigo-600">◆</span>{BRAND.name}
+        </span>
+        <span className="hidden sm:inline text-[11px] text-slate-400">use ← → to navigate</span>
+        <a href={bookHref} className="text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline">Book a call →</a>
+      </div>
+      <div className="flex-none flex items-center justify-center gap-1.5 pt-2">
         {SLIDES.map((s, idx) => (
           <button key={idx} onClick={() => setI(idx)} title={s.title}
             aria-label={`Go to slide ${idx+1}: ${s.title}`}
@@ -908,7 +1054,7 @@ function App(){
         ))}
       </div>
 
-      <main className="flex-1 overflow-hidden py-4">{SLIDES[i].render()}</main>
+      <main className="flex-1 overflow-hidden py-3">{SLIDES[i].render()}</main>
 
       <footer className="flex-none border-t border-slate-200 bg-white/70 backdrop-blur px-6 py-3 flex items-center justify-between gap-4">
         <button onClick={prev} disabled={i === 0}

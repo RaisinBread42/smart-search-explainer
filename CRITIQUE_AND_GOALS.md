@@ -1,106 +1,121 @@
 # Critique & Project Goals — Semantic vs Keyword Search Demo
 
-## Executive Summary
+This is a single-file React presentation (`index.html`, ~935 lines) that teaches the difference between keyword (TF-IDF + title-weighted matching) and "semantic" (IDF-weighted co-occurrence + TF-IDF blend, compared by cosine) search over a 60-item marketplace dataset. The execution is genuinely strong: ten well-sequenced slides, two live search interfaces (`DemoKeyword`, `DemoSemantic`), a side-by-side `Comparison` with a Recharts bar chart, a draggable cosine-angle visualization (`CosineVisual`), an honest `FailureCase` slide, and accessibility touches (keyboard nav, reduced-motion, focus rings). Across all reviewers the verdict is consistent: this is an A-grade *technical/teaching* artifact wrapped in a C-grade *sales* shell that under-explains its own jargon for true beginners. The single biggest opportunity is to **close the comprehension gap for non-experts (layered jargon, "why ranked?" for keyword, narrative-before-formula) while elevating the Obsidian Software brand and CTA from a footnote into a credible, low-friction sales close** — without sacrificing the intellectual honesty that makes the deck trustworthy.
 
-The demo is a genuinely polished, single-file React presentation (`index.html`, 7 slides) that succeeds at its core mission: making the difference between keyword and semantic search *tangible* through live, interactive demos on a 60-item marketplace dataset. The TF-IDF + L2-normalized cosine implementation is technically sound, the indigo/emerald color coding is consistent, and the side-by-side `Comparison` slide delivers a real "aha" moment. Its three biggest gaps, however, are consistent across reviewers: it shows *that* the algorithms differ without teaching *why* (no vector/cosine visual, jargon left unexplained), it mislabels a statistical TF-IDF model as true "semantic understanding," and — for a portfolio piece — it makes **Obsidian Software nearly invisible** (one gray footer mention on line 720, zero CTA). The single biggest opportunity is to close the loop from *demonstration* to *understanding* and *conversion*: explain the mechanism intuitively, label it honestly, and give the brand a presence and a next step.
+> Note on scope: the brief asked for five personas including a "UI/UX Designer," but only four structured critiques were supplied (Beginner Student, Advanced Student, Brand Marketer, Learning Experience Designer). The UI/UX section below is synthesized directly from observable facts in the code rather than from a supplied critique, and is flagged as such.
 
 ## Per-Persona Critique
 
-### Beginner Student
-**Overall take:** A polished, engaging presentation that wins by *showing* the keyword-vs-semantic difference through live demos and side-by-side comparison, but loses by never explaining *how* semantic search works — the `ExplainSemantic` slide drops "vectors," "TF-IDF," and "cosine similarity" without teaching them, and there's no guidance on when to use each method in real life.
-- **Top strengths:** Live demos (`DemoKeyword`/`DemoSemantic`) make it click instantly; concrete framing on a real marketplace from slide 1; clear 3-step visual breakdown on the explainer slides; the `Comparison` slide is where the learning lands.
-- **Top weaknesses:** The `(A · B) / (‖A‖ ‖B‖)` formula (line 489) is shown but never taught; stop words (line 144) filtering is never justified; no visual for what "angle" means in cosine; pre-filled example queries (lines 440, 502) replace hypothesis-testing with a scripted demo; `Takeaways` lists pros/cons but gives no concrete "when would I choose this" guidance.
+### Beginner Student (no CS background)
+**Overall take:** Succeeds at showing search side-by-side and making the math visible (the cosine slider is "brilliant"), but assumes domain knowledge with no safety net — "TF-IDF," "cosine similarity," "distributional embeddings," and "IDF" all appear unexplained, so a newcomer learns *that* it works, never *why*.
 
-### Advanced Student
-**Overall take:** Visually compelling and the live interaction is pedagogically powerful, but it conflates TF-IDF + cosine with *true semantic understanding*, hides architectural trade-offs, and risks embedding misconceptions. For a portfolio it works; for teaching it's intellectually loose.
-- **Top strengths:** Correct TF-IDF + L2-normalized cosine implementation (`buildModel`, `vectorize`, `cosine`); honest trade-off framing on `Takeaways`; smart dataset design with deliberate synonymy (cheap/affordable/inexpensive, sofa/couch) and exact-match cases.
-- **Top weaknesses:** "understands meaning" (line 474) and "understands intent" (line 507) are false for TF-IDF; the 650ms artificial delay (line 372) is unexplained and could read as real latency; no mention of *why* IDF works, why L2 normalization matters, or sparse vs. dense retrieval; BM25 (the real industry baseline) is absent; cosine scores cluster low without explanation of high-dimensional sparsity.
+**Top strengths:** Live interactive demos beat watching someone type; the side-by-side `Comparison` bar chart makes the score gap obvious without reading; the `CosineVisual` angle slider makes geometry concrete; the honest `mirorless camra` failure case builds trust; the conceptual→visceral→comparative slide rhythm teaches well.
 
-### Brand Marketer
-**Overall take:** Technically polished and educationally excellent, but Obsidian Software is nearly invisible to prospects — a viewer finishes impressed by the algorithm but has no idea who built it, what they sell, or how to reach them. A missed conversion opportunity.
-- **Top strengths:** Polished UI signals quality and competence; clear pedagogical arc; live demos make the value memorable; honest trade-off framing builds credibility; client-side implementation demonstrates technical self-sufficiency.
-- **Top weaknesses:** Brand appears once in gray footer text (line 720), no logo or story; no business/ROI framing; zero call-to-action; no credibility signals (case studies, founder, deployments); academic tone over enterprise outcomes; no service model or engagement path; `Takeaways` is pedagogically complete but commercially inert.
+**Top weaknesses:** The "TF-IDF model · not neural embeddings" badge (line 595) and "neighbors"/IDF language land *before* any plain-English gloss; the keyword score formula (line 513) is textbook-y and intimidating; "stop words" appears without first being named in plain English; only semantic has a "why ranked?" — keyword has none, so its scoring stays opaque; the Slide 1 promise to "explain how each engine scores" is never paid off with a single worked step-through.
+
+### Advanced Student & IR Researcher
+**Overall take:** Pedagogically excellent with sound code, but conflates "TF-IDF + cosine" with "semantic search" without enough precision framing. The "not neural embeddings" disclaimer (line 595) and the "same core idea... word2vec, BERT" note (line 616) help, but a CS student could leave thinking word vectors from 60 items approximate true embeddings.
+
+**Top strengths:** Explicit "not neural embeddings" honesty; dedicated failure slide ("garbage in, sparse out", line 781); the "why ranked?" literal-vs-related tagging (lines 348–351) teaches distributional mechanics directly; the hybrid-search conclusion (line 832) frames production reality correctly.
+
+**Top weaknesses:** Title framing "compares meaning" (line 444) lacks a guardrail until Slide 5; magic numbers are undocumented and unjustified — IDF smoothing `log((N+1)/(df+1))+1` (line 185), the `1.0·dist + 0.7·tfidf` blend (lines 213–214), and the `idf[a]*1.5` self-anchor (line 202); BM25 is dismissed as "just tuned" (line 519) when term saturation is the real breakthrough; the *mechanical* "why" of category resistance (co-occurrence neighborhoods) is demonstrated but never explained; cosine's rotation-invariance / dot-product-on-unit-vectors rationale is skipped; sparsity with a vocab-limited 60-item set is hidden behind silent "no results."
+
+### Brand Marketer (VP Sales lens)
+**Overall take:** A technically brilliant portfolio piece that builds trust through transparency, but a missed *sales* opportunity. Obsidian Software is barely visible, there's no proof of past wins, and the CTA assumes the buyer already knows what the company does.
+
+**Top strengths:** Immediate engineering credibility; teach-before-sell structure earns trust; the honest failure slide reads as integrity; the dual-audience pitch genuinely lands for both; production polish (obsidian theme, animations, a11y) signals craftsmanship.
+
+**Top weaknesses:** Brand appears only ~3 times, small and late (lines 458, 845, 921); a personal Gmail address (line 76) signals solopreneur and confuses "who am I hiring"; no case studies or outcome metrics (fictional 60-item data only); the CTA `mailto` "Let's talk search" (lines 860–862) is vague and high-friction (no Calendly, no 1-pager, no phone/LinkedIn/GitHub); no shareability (no QR/short URL/watermark); pure-teaching-then-sudden-sell whiplash between Slides 1–9 and Slide 10.
 
 ### Learning Experience Designer
-**Overall take:** Strong, polished, with excellent active-learning moments and clean scaffolding, but misses retrieval practice, prediction-before-reveal, and durable conceptual anchoring. The "aha" lands, but most audiences leave without a mental model for *when and why* to choose semantic search.
-- **Top strengths:** Live demos follow sound active-learning principles; the `Comparison` bar chart + unique-item highlighting is the pedagogical centerpiece; well-ordered scaffolding (explain → demo → explain → demo → compare); legible formula callouts.
-- **Top weaknesses:** No prediction moment before demos (boxes pre-populate via `EXAMPLES`); the "catch" callout (line 431) names the failure but doesn't connect it to the semantic fix; rarity/IDF is asserted without an analogy or reason; no checks-for-understanding or failure-case (typos, niche terms) to prevent overgeneralizing that semantic always wins; the vague title-slide promise ("watch where they agree — and where they don't"); same slides serve both audiences without differentiation.
+**Overall take:** Skillfully built with strong retrieval practice (two live interfaces) and excellent "show don't tell," but misses chances for prediction-before-reveal, deeper scaffolding around *why* the algorithms exist, and explicit checks for understanding for a live audience.
 
-### UI/UX Designer
-**Overall take:** Well-engineered with solid fundamentals and purposeful micro-interactions, but it plays too safe — corporate-template rather than memorable. For a portfolio piece showcasing Obsidian's craft, it needs more personality, richer data-viz, and stronger hierarchy at projector scale.
-- **Top strengths:** Purposeful micro-interactions (`pulseScan`, `scanIn`, `barGrow`); consistent, accessible indigo/emerald color language; intentional motion design (custom easing, custom `obsidian.*` palette); genuinely interactive demo slides; clean responsive reflow.
-- **Top weaknesses:** Flat typography hierarchy (all headings `text-3xl font-bold`); safe Tailwind-default palette with only one bold color move (the slide-1 gradient); plain Recharts bar chart with no mount animation or data labels; thin `ScoreBar` (h-2.5) that fades on projectors; no `prefers-reduced-motion` support (accessibility gap across 60+ animations); under-designed footer; near-invisible 2px "unique" dot (line 617); no hover/active states on nav dots.
+**Top strengths:** Active learning by design (learners generate their own examples); both learning objectives are demonstrable by the `Comparison` slide; cognitive load is well chunked (isolated 3-card breakdowns); the failure slide inoculates against magical thinking; the manipulable cosine visual lets the brain "feel" the concept.
+
+**Top weaknesses:** `PredictPrompt` exists (lines 386–394) and *is* the default empty state, but there's no hard gate forcing a committed prediction before the reveal; Slide 2 stats are generic, not personal ("have YOU ever..."); algorithms are shown as handed-down rather than invited via a guiding question; the co-occurrence "neighbors" story is asserted, not shown with a concrete grid; "term · related" labels (line 350) lack the "appeared alongside your query words" explanation; no mid-deck check-for-understanding; Slide 7 divergence is info-dumped rather than predicted; "hybrid" arrives only at Slide 9.
+
+### UI/UX Designer (synthesized from code — no critique supplied)
+**Overall take:** Visually cohesive and polished, with a consistent obsidian palette, smooth motion, and thoughtful empty/loading states (`PredictPrompt`, `Scanning`). The main UX gaps are navigation affordance and information density on the explainer slides.
+
+**Top strengths:** Consistent accent system (indigo = keyword, emerald = semantic) reinforces the mental model throughout; `ScoreBar`, `ResultCard`, and `CompactRow` are clean and reusable; reduced-motion and focus-visible support (lines 57–66) show real a11y care; the progress-dot nav (lines 903–909) is minimal and clear.
+
+**Top weaknesses:** Navigation relies on arrow keys / tiny dots with no on-screen hint that the deck is keyboard-drivable; explainer slides (`ExplainKeyword`, `ExplainSemantic`) are text-dense and may overflow on shorter viewports given the `overflow-hidden` shells; the `mailto`-only CTA is a dead-end on devices without a mail client; no persistent brand/share affordance; chart x-axis labels are truncated to 20 chars (line 659), which can render ambiguous bars.
 
 ## Cross-Cutting Themes
 
-These were independently raised by multiple personas — highest signal:
+These issues were raised independently by multiple personas and are the highest-signal items.
 
-1. **"When/why would I use each?" is unanswered.** The `Takeaways` slide gives generic pros/cons and "use both" but no concrete decision guidance or real scenario. — *Beginner, Advanced, Learning Designer, Brand Marketer*
-2. **The mechanism of semantic search is never made intuitive.** No vector/cosine-angle visual, no analogy for *why rarity (IDF) matters*, jargon dropped without teaching. — *Beginner, Advanced, Learning Designer*
-3. **Pre-filled demo queries kill the learning moment.** `DemoKeyword`/`DemoSemantic` auto-populate from `EXAMPLES`, so audiences watch a scripted demo instead of predicting then testing. — *Beginner, Learning Designer*
-4. **Honesty / framing of "semantic."** "understands meaning"/"understands intent" overclaims what a TF-IDF statistical model does; the 650ms delay can mislead about real latency. — *Advanced* (term precision) and *Beginner* (felt "magical" rather than logical).
-5. **Brand is invisible and there's no next step.** One gray footer mention, no logo, no CTA, no ROI framing. — *Brand Marketer*, with the *UI/UX Designer* independently flagging the under-designed footer and buried branding.
-6. **Polish ceiling on visuals/data-viz and accessibility.** Plain chart, thin score bars, flat hierarchy, near-invisible "unique" dot, and missing reduced-motion support. — *UI/UX Designer*, with the *Learning Designer* also noting the unique-dot is undiscoverable.
+1. **Jargon outruns explanation / the "why" is asserted, not shown.** TF-IDF, IDF, cosine, "embeddings," and "neighbors" all appear before (or without) a plain-English gloss, and the co-occurrence neighborhood mechanism — the actual reason semantic resists category conflation — is currently invisible. *Flagged by: Beginner, Advanced, Learning Designer.*
+
+2. **Asymmetric transparency: only semantic explains itself.** Semantic has "why ranked?"; keyword has none, so its scoring (and the formula on Slide 3) feels opaque to beginners and unexamined to learners. *Flagged by: Beginner, Learning Designer.*
+
+3. **Prediction-before-reveal is set up but not enforced.** `PredictPrompt` is the empty state, yet nothing forces a committed guess before results appear, blunting the retrieval-practice payoff both reviewers prize. *Flagged by: Learning Designer, Advanced (prediction-first praise).*
+
+4. **Brand + CTA are an afterthought.** Obsidian Software is small and late; the CTA is a single vague `mailto`; no proof, no low-friction options, no shareability. *Flagged by: Brand Marketer (primary).*
+
+5. **Precision framing of "semantic."** "Compares meaning" on the title slide overstates what 60-item co-occurrence vectors do; the guardrail arrives only on Slide 5. *Flagged by: Advanced (primary), Beginner (jargon confusion compounds it).*
+
+6. **"Why this matters" is abstract.** Slide 2's stats are generic industry figures with no personal hook or relatable scenario to prime curiosity. *Flagged by: Beginner, Learning Designer.*
 
 ## Prioritized Improvement Backlog
 
-Sorted by impact (high first), then ascending effort.
+Merged and de-duplicated across all personas. Sorted by impact (high first), then ascending effort.
 
 | Improvement | Why it matters | Impact | Effort | Personas |
 |---|---|---|---|---|
-| Add a vector + cosine-angle visual to `ExplainSemantic` (two arrows at angle θ; "smaller angle = more similar") | Turns the intimidating `(A·B)/(‖A‖‖B‖)` formula into intuition — the #1 comprehension gap | High | Med | Beginner, Advanced, Learning Designer |
-| Start demo slides with empty search boxes (remove `EXAMPLES` auto-run on `DemoKeyword`/`DemoSemantic`) | Forces predict-then-test; that's where retention sticks vs. watching a script | High | Small | Beginner, Learning Designer |
-| Add IDF/TF-IDF analogy before the formula ("rare words like *mirrorless* are distinctive signals; *the/and* are noise") | Makes the model feel logical, not magical; explains *why* rarity matters | High | Small | Beginner, Learning Designer, Advanced |
-| Add prediction prompts before each demo ("what will rank #1, and why?") | Prediction effect raises retention ~15–20%; cheap friction, high payoff | High | Small | Learning Designer, Beginner |
-| Honest relabel: keep "Semantic" but subtitle it "TF-IDF statistical model, not neural embeddings"; soften "understands meaning"/"intent" | Prevents misconceptions; signals technical integrity to expert evaluators | High | Small | Advanced, Beginner |
-| Add contact + branding to footer (logo, "Obsidian Software", email) replacing gray line-720 text | Prospects currently can't tell who built it or how to reach them | High | Small | Brand Marketer, UI/UX Designer |
-| Add a CTA to `Takeaways` ("Want semantic search for your platform? Let's talk") | Presentation ends with zero conversion path | High | Small | Brand Marketer |
-| Add founder/company intro line to `SlideTitle` | Establishes authority and specialization on first impression | High | Small | Brand Marketer |
-| Add `@media (prefers-reduced-motion: reduce)` to disable the 60+ keyframe animations | Accessibility — non-negotiable for vestibular-sensitive users | High | Small | UI/UX Designer |
-| Rewrite `Takeaways` with concrete use cases + *why* combine (keyword=precision/recall on exact SKUs; semantic=intent; blend as retrieval + rerank) | Answers the most-repeated question across personas | High | Med | Beginner, Advanced, Learning Designer, Brand Marketer |
-| Elevate the Recharts chart: mount animation, on-bar data labels, taller (300px), stronger grid | Data-viz is the centerpiece of `Comparison` but currently reads as generic | High | Med | UI/UX Designer |
-| Anchor semantic search to a memorable analogy ("affordable & budget become neighbors via co-occurrence") | Gives audiences a sticky internal model, not just a diagram | High | Small | Learning Designer |
-| Stronger visual identity: secondary accent color + custom font, used on highlights/logo | Differentiates from corporate Tailwind defaults for a portfolio piece | High | Med | UI/UX Designer |
-| Explain the 650ms scan delay is animation-only, not algorithmic latency | Stops students inferring semantic is intrinsically 1000x slower | Med | Small | Advanced |
-| Differentiate typographic hierarchy (heading/subhead/body scale) across slides 2–7 | ~20% perceived professionalism gain at near-zero cost | Med | Small | UI/UX Designer |
-| Make the "unique to engine" indicator discoverable (badge "Semantic only" vs the 2px dot, line 617) | Currently invisible; the key insight of `Comparison` is missed | Med | Small | UI/UX Designer, Learning Designer |
-| Add a failure-case demo (typo / niche term like "TF-IDF") showing semantic also struggles | Prevents overgeneralizing that semantic always wins; models honesty | Med | Med | Learning Designer, Advanced |
-| Explain why stop words are filtered (one sentence on `ExplainKeyword`/`ExplainSemantic`) | Removes an unexplained "magic" step | Med | Small | Beginner |
-| Note why cosine scores look low/moderate (high-dim sparsity) | Explains the score distribution students will notice | Med | Small | Advanced |
-| Mention BM25 as the real keyword baseline on `ExplainKeyword` | Sets correct expectations; the custom formula isn't industry-standard | Med | Med | Advanced |
-| Polish interactive elements: focus rings, button icons (← Back / Next →), pill active states | Keyboard accessibility + polish on nav and `SearchBox` "Try:" pills | Med | Small | UI/UX Designer |
-| Boost `ScoreBar` weight (h-3+, glow on high scores) for projector legibility | Bars are the primary magnitude cue; they fade at distance | Med | Small | UI/UX Designer |
-| Add explicit learning objectives to `SlideTitle` | Frames attention; raises transfer | Med | Small | Learning Designer |
-| Add a business-case/ROI slide before `ExplainKeyword` ("better relevance lifts conversion 5–12%") | Gives prospects a reason to care before the technical detail | Med | Med | Brand Marketer |
-| Add a case-study/proof point callout to `Comparison` | Proof multiplies credibility | Med | Med | Brand Marketer |
-| Add a "Services & Next Steps" slide after `Takeaways` | Gives clients a clear engagement menu | Med | Med | Brand Marketer |
-| Worked example of the keyword scoring formula on `ExplainKeyword` | Makes the formula memorable | Med | Med | Beginner |
-| Quantify sparse-vs-dense architecture (vocab-sized sparse vs 384–1536-dim dense embeddings) | Teaches the structural gap to TF-IDF vs BERT | High | Large | Advanced |
-| Dark/presentation mode toggle | Projector legibility; feels like a real presentation tool | Med | Med | UI/UX Designer |
+| Layer the jargon on `ExplainSemantic` (Slide 5): gloss the TF-IDF badge, replace "distributional embeddings"→"meaning neighbors," front-load "cheap/budget/affordable cluster because they appear in similar listings" before the math | Removes the #1 lock-out for beginners; sharpens precision for CS students | High | Small | Beginner, Advanced |
+| Rewrite the keyword score explanation on Slide 3 as narrative-first ("title words count double... 2-word query, both in title = 100%"), formula second | Beginners zone out at the formula (line 513); story-then-notation respects learning order | High | Small | Beginner |
+| Reframe "compares meaning" (Slide 1, line 444) as "approximates meaning via word patterns," add: "learns from 60 items; real search trains on billions of sentences" | Prevents the neural-embeddings conflation from the first slide | High | Small | Advanced, Beginner |
+| Elevate brand: persistent header/footer logo + a sticky "Chat with Obsidian" affordance from Slide 2 on | Buyers currently leave remembering the algorithm, not the company | High | Small | Brand Marketer |
+| Rewrite CTA with a specific, lower-friction close: "Book a 15-min search audit" + pain checklist, replacing vague `mailto` "Let's talk search" | Generic mailto kills conversion; specificity gives a reason to click | High | Small | Brand Marketer |
+| Add a hard prediction gate before each live demo (commit a guess before results render) | Prediction-before-reveal is the highest-ROI retention move and is half-built already | High | Small | Learning Designer |
+| Add a "why ranked?" breakdown to keyword results (which words hit title vs body, phrase bonus) | Restores symmetry; lets learners predict the next ranking; demystifies keyword scoring | High | Medium | Beginner, Learning Designer |
+| Unpack the co-occurrence "neighbors" story with a concrete 3×3 example grid on Slide 5 | This is the deepest insight (why semantic resists category conflation) and is currently invisible | High | Medium | Advanced, Learning Designer |
+| Insert a credibility section before the CTA: anonymized case studies / outcome metrics (even illustrative) | "Hypothetical, not battle-tested" is the core sales objection | High | Medium | Brand Marketer |
+| Add proof/services slide with concrete outcomes ("cut no-result queries from 12% to 2%") | Real (or clearly illustrative) numbers convert | High | Medium | Brand Marketer |
+| Name "stop words" in plain English ("noise/skip words") before the term on Slide 3 | Gives a mental model before the jargon hits | Medium | Small | Beginner |
+| Clarify what "related" means in semantic "why ranked?" tooltips ("appeared alongside your query words in the catalog") | Delivers the "aha" for why semantic retrieval works | Medium | Small | Beginner, Learning Designer |
+| Ground Slide 2 stats with a personal scenario ("you typed 'affordable leather seating' and got a $6k sofa") | Primes curiosity; makes the next 5 slides answer a felt question | Medium | Small | Beginner, Learning Designer |
+| Document/justify magic numbers as comments + footnotes: IDF smoothing, `1.0/0.7` blend, `1.5` self-anchor | CS students see dials, not magic | Medium | Small | Advanced |
+| Expand the BM25 note: term saturation is a real fix, not "just tuned" | Corrects a misleading dismissal for the CS audience | Medium | Small | Advanced |
+| Introduce each algorithm via a guiding question ("if you had zero budget, how would you match words?") | Invites the algorithm from first principles instead of handing it down | Medium | Small | Learning Designer |
+| Plant the "hybrid" hypothesis after the semantic demo (Slide 5), not just Slide 9 | Sets up Slide 7/9 as answers to a question learners are already forming | Medium | Small | Learning Designer |
+| Offer CTA *choice* + alt contact (Calendly / 1-pager PDF / LinkedIn / GitHub), drop the personal-Gmail-only signal | Different buyers have different friction tolerances; signals a real company | Medium | Small | Brand Marketer |
+| Add shareability: footer watermark + QR/short URL + copy-link button | Enables credit and forwarding from a live room | Medium | Small | Brand Marketer |
+| Thread a one-line sales bridge into the Takeaways slide ("we've tuned this blend for catalogs from 10k to 10M+ items") | Primes the sell without breaking the teaching tone | Medium | Small | Brand Marketer |
+| Add a mid-deck check-for-understanding (forced-choice) between the two demos | Surfaces misconceptions live; makes the semantic slide land harder | Medium | Medium | Learning Designer |
+| Make the Slide 7 divergence a prediction before the chart reveals | Turns passive observation into active reasoning | Medium | Medium | Learning Designer |
+| Add a step-by-step "guided example" walkthrough on the keyword demo | Decouples understanding the algorithm from running queries | Medium | Medium | Beginner |
+| Fuller cosine geometry note for the CS audience (unit-vector dot product, rotation invariance, why not Euclidean) | Closes an assumed-knowledge gap | Medium | Medium | Advanced |
+| Add a glossary tooltip/footnote for one-off terms (BM25, neural embeddings, vector space) | Lets curious beginners go deeper without slowing the narrative | Medium | Medium | Beginner |
+| Expose blend-weight as a live slider on the semantic/comparison demo | Makes "tuning hyperparameters" tactile; worth 1000 words | Medium | Large | Advanced |
 
 ## Project Goals & Roadmap
 
 ### Now (quick wins — small effort, high/medium impact)
-- Replace the gray footer with branding + contact (logo, "Obsidian Software", email) and add a CTA + founder line to `SlideTitle`.
-- Remove auto-run `EXAMPLES` from `DemoKeyword`/`DemoSemantic`; start with empty boxes and a prediction prompt.
-- Add `@media (prefers-reduced-motion: reduce)` to neutralize animations.
-- Honestly relabel "semantic" (TF-IDF subtitle), soften "understands meaning/intent", and add a one-line IDF/stop-word analogy.
-- Note that the 650ms scan is animation-only; tighten typographic hierarchy; make the "unique" dot a labeled badge.
+- De-jargon Slide 5: gloss TF-IDF, swap "embeddings"→"meaning neighbors," front-load the cluster story before the math.
+- Rewrite the Slide 3 keyword score as narrative-first, formula-second; name "stop words" in plain English first.
+- Reframe Slide 1 "compares meaning"→"approximates meaning," with the 60-items-vs-billions caveat up front.
+- Make the brand persistent (header/footer logo + a sticky contact affordance from Slide 2).
+- Replace the vague `mailto` CTA with "Book a 15-min search audit" + a pain checklist, and add alt contact options.
+- Add a hard prediction gate before both live demos.
+- Ground Slide 2 with a personal "you searched X and got Y" scenario.
 
-### Next (this iteration — the core teaching + selling upgrade)
-- Build the vector/cosine-angle visual on `ExplainSemantic` and the co-occurrence "neighbors" analogy.
-- Rewrite `Takeaways` with concrete use cases and *why* production systems blend keyword + semantic.
-- Add a "Services & Next Steps" slide and a business-case/ROI framing slide; add a proof-point callout to `Comparison`.
-- Upgrade the Recharts chart (mount animation, data labels, height) and `ScoreBar` weight; add focus states and nav-button icons.
-- Add a failure-case demo and mention BM25 as the real keyword baseline.
+### Next (this iteration — medium effort)
+- Add "why ranked?" to keyword results (title/body/phrase signals) for transparency parity.
+- Show the co-occurrence "neighbors" mechanism with a concrete 3×3 grid on Slide 5.
+- Insert a credibility/case-study section with illustrative outcome metrics before the CTA.
+- Document the magic numbers (IDF smoothing, 1.0/0.7 blend, 1.5 self-anchor) and expand the BM25 note.
+- Add a mid-deck check-for-understanding and a prediction step before the Slide 7 chart.
+- Plant the hybrid hypothesis early (Slide 5) and thread a sales bridge into Takeaways.
 
 ### Later (ambitious / wow)
-- Interactive 2D vector-space explorer / PCA projection showing query and top docs as points (cosine = angle, made visceral).
-- "Explain this ranking" breakdown button on results (per-term TF-IDF contributions) for transparency.
-- Hybrid search mode with an adjustable keyword/semantic weighting slider to teach fusion/ensemble thinking.
-- "Bring your own catalog": let viewers paste their own product titles and re-run the demos on real data.
-- Sparse-vs-dense explainer slide; dark/presentation mode; spaced-retrieval follow-up quiz via QR/link.
+- "Test your data" mode: paste/upload product titles + descriptions and run both engines live on the prospect's own catalog.
+- Live blend-weight and self-anchor sliders that re-rank in real time (turns hyperparameters into dials).
+- Live co-occurrence heat map for the query + top results, and an "algorithm inspector" that audits every scoring step.
+- Audience-participation modes: live "class search," a predict-and-reveal game, and the Slide 8 "typo trap" with a third "how production fixes it" column.
+- Downloadable "Search Audit Checklist" lead magnet with email capture.
 
 ## North-Star Vision
 
-A single, self-contained interactive artifact that a beginner finishes *understanding* — not just seeing — why semantic search surfaces an "affordable sofa" you never named, with an intuitive grasp of vectors, cosine angle, and when each method wins. It is intellectually honest enough that an IR expert nods at the framing, and crafted and branded well enough that a prospect immediately knows Obsidian Software built it, why search relevance moves revenue, and exactly how to start a conversation. The demo *is* the pitch: it teaches brilliantly and sells the brand in the same breath.
+The ideal artifact is a single, shareable file that a complete beginner finishes feeling they truly *understand* why semantic search finds intent — not just that it does — while a CS student leaves respecting the precision of its framing and an enterprise buyer leaves with Obsidian Software's name, proof of impact, and a one-click way to book a conversation. Every claim is honest, every number is a visible dial rather than magic, and every concept is earned through a prediction the learner made themselves. It teaches brilliantly *and* sells credibly, because the same radical transparency that makes it a great lesson is exactly what makes the brand trustworthy.
