@@ -77,6 +77,7 @@ const BRAND = {
   name: 'Obsidian Software',
   founder: 'Shannon Williams',
   email: 'williamsshannonj@gmail.com',
+  linkedin: 'https://www.linkedin.com/in/shannon-williams/',
   // Optional: drop in a Calendly/Cal.com link to make the CTA one-click.
   // Leave '' and the "Book an audit" button falls back to a pre-filled email.
   bookingUrl: '',
@@ -998,7 +999,8 @@ function CTA(){
         </a>
         <p className="mt-3 text-sm text-slate-400">
           {BRAND.founder} · <a className="text-indigo-600 hover:underline" href={`mailto:${BRAND.email}`}>{BRAND.email}</a>
-          <span className="text-slate-300"> · prefer a call or LinkedIn? just ask</span>
+          <span className="text-slate-300"> · </span>
+          <a className="text-indigo-600 hover:underline" href={BRAND.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a>
         </p>
       </div>
     </SlideShell>

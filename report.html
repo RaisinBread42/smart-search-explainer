@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Critique & Goals — Semantic vs Keyword Search Demo</title>
+<title>Critique & Goals (Round 2) — Semantic vs Keyword Search Demo</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -22,88 +22,82 @@
 <script type="text/babel" data-presets="react">
 const { useState, useMemo } = React;
 
-/* ---------- DATA ---------- */
+/* ---------- DATA (Round 2 critique) ---------- */
 const PERSONAS = [
   { key:'beginner', name:'Beginner Student', icon:'🌱', color:'emerald',
-    take:"A polished, engaging presentation that wins by showing the keyword-vs-semantic difference through live demos and side-by-side comparison, but loses by never explaining how semantic search works — ExplainSemantic drops “vectors,” “TF-IDF,” and “cosine similarity” without teaching them, and there’s no guidance on when to use each method in real life.",
-    strengths:["Live demos make it click instantly","Concrete real-marketplace framing from slide 1","Clear 3-step visual breakdown on explainers","The Comparison slide is where learning lands"],
-    weaknesses:["The (A·B)/(‖A‖‖B‖) formula is shown but never taught","Stop-word filtering never justified","No visual for what “angle” means in cosine","Pre-filled queries replace hypothesis-testing with a script","Takeaways gives no concrete “when would I choose this”"] },
-  { key:'advanced', name:'Advanced Student', icon:'🎓', color:'indigo',
-    take:"Visually compelling and the live interaction is pedagogically powerful, but it conflates TF-IDF + cosine with true semantic understanding, hides architectural trade-offs, and risks embedding misconceptions. For a portfolio it works; for teaching it’s intellectually loose.",
-    strengths:["Correct TF-IDF + L2-normalized cosine implementation","Honest trade-off framing on Takeaways","Smart dataset with deliberate synonymy & exact-match cases"],
-    weaknesses:["“Understands meaning/intent” is false for TF-IDF","650ms artificial delay unexplained — reads as real latency","No why-IDF-works, why-L2, or sparse vs dense","BM25 (the real industry baseline) is absent","Low cosine scores unexplained (high-dim sparsity)"] },
-  { key:'marketer', name:'Brand Marketer', icon:'📣', color:'rose',
-    take:"Technically polished and educationally excellent, but Obsidian Software is nearly invisible to prospects — a viewer finishes impressed by the algorithm but has no idea who built it, what they sell, or how to reach them. A missed conversion opportunity.",
-    strengths:["Polished UI signals quality & competence","Clear pedagogical arc","Live demos make the value memorable","Honest framing builds credibility","Client-side build shows self-sufficiency"],
-    weaknesses:["Brand appears once in gray footer text — no logo/story","No business/ROI framing","Zero call-to-action","No credibility signals (case studies, founder)","Academic tone over enterprise outcomes","No service model or engagement path"] },
+    take:"Succeeds at showing search side-by-side and making the math visible (the cosine slider is “brilliant”), but assumes domain knowledge with no safety net — “TF-IDF,” “cosine similarity,” “distributional embeddings,” and “IDF” all appear unexplained, so a newcomer learns that it works, never why.",
+    strengths:["Live interactive demos beat watching someone type","Side-by-side Comparison bar chart makes the score gap obvious","CosineVisual angle slider makes geometry concrete","The honest 'mirorless camra' failure case builds trust","Conceptual→visceral→comparative slide rhythm teaches well"],
+    weaknesses:["“TF-IDF · not neural embeddings” badge lands before any plain-English gloss","The keyword score formula is textbook-y and intimidating","“Stop words” appears without being named in plain English first","Only semantic has “why ranked?” — keyword scoring stays opaque","Slide 1's promise to “explain how each engine scores” is never paid off with a worked step-through"] },
+  { key:'advanced', name:'Advanced Student & IR Researcher', icon:'🎓', color:'indigo',
+    take:"Pedagogically excellent with sound code, but conflates “TF-IDF + cosine” with “semantic search” without enough precision framing. The disclaimers help, but a CS student could leave thinking word vectors from 60 items approximate true embeddings.",
+    strengths:["Explicit “not neural embeddings” honesty","Dedicated failure slide (“garbage in, sparse out”)","“why ranked?” literal-vs-related tagging teaches distributional mechanics","The hybrid-search conclusion frames production reality correctly"],
+    weaknesses:["Title framing “compares meaning” lacks a guardrail until Slide 5","Magic numbers undocumented (IDF smoothing, 1.0/0.7 blend, 1.5 self-anchor)","BM25 dismissed as “just tuned” — term saturation is the real breakthrough","The mechanical “why” of category resistance (co-occurrence) is demonstrated but never explained","Cosine rationale (unit-vector dot product) skipped; sparsity hidden behind silent “no results”"] },
+  { key:'marketer', name:'Brand Marketer (VP Sales lens)', icon:'📣', color:'rose',
+    take:"A technically brilliant portfolio piece that builds trust through transparency, but a missed sales opportunity. Obsidian Software is barely visible, there's no proof of past wins, and the CTA assumes the buyer already knows what the company does.",
+    strengths:["Immediate engineering credibility","Teach-before-sell structure earns trust","The honest failure slide reads as integrity","The dual-audience pitch genuinely lands for both","Production polish signals craftsmanship"],
+    weaknesses:["Brand appears only ~3 times, small and late","A personal Gmail signals solopreneur and confuses “who am I hiring”","No case studies or outcome metrics","CTA mailto “Let's talk search” is vague and high-friction","No shareability (no QR / short URL / watermark)","Teaching-then-sudden-sell whiplash into the last slide"] },
   { key:'learning', name:'Learning Experience Designer', icon:'🧩', color:'amber',
-    take:"Strong, polished, with excellent active-learning moments and clean scaffolding, but misses retrieval practice, prediction-before-reveal, and durable conceptual anchoring. The “aha” lands, but most audiences leave without a mental model for when and why to choose semantic search.",
-    strengths:["Live demos follow sound active-learning principles","Comparison chart + unique-item highlight is the centerpiece","Well-ordered scaffolding (explain → demo → compare)","Legible formula callouts"],
-    weaknesses:["No prediction moment before demos (boxes pre-populate)","The “catch” callout names the failure but not the fix","Rarity/IDF asserted without analogy","No checks-for-understanding or failure-case","Same slides serve both audiences undifferentiated"] },
-  { key:'uiux', name:'UI/UX Designer', icon:'🎨', color:'violet',
-    take:"Well-engineered with solid fundamentals and purposeful micro-interactions, but it plays too safe — corporate-template rather than memorable. For a portfolio piece showcasing Obsidian’s craft, it needs more personality, richer data-viz, and stronger hierarchy at projector scale.",
-    strengths:["Purposeful micro-interactions (pulseScan, scanIn, barGrow)","Consistent, accessible indigo/emerald color language","Intentional motion design & custom palette","Genuinely interactive demo slides","Clean responsive reflow"],
-    weaknesses:["Flat typography hierarchy (all headings text-3xl)","Safe Tailwind-default palette, one bold move","Plain Recharts chart, no mount animation/labels","Thin ScoreBar fades on projectors","No prefers-reduced-motion across 60+ animations","Near-invisible 2px “unique” dot; no nav-dot states"] },
+    take:"Skillfully built with strong retrieval practice (two live interfaces) and excellent “show don't tell,” but misses chances for prediction-before-reveal, deeper scaffolding around why the algorithms exist, and explicit checks for understanding.",
+    strengths:["Active learning by design (learners generate their own examples)","Both learning objectives are demonstrable by the Comparison slide","Cognitive load well chunked (isolated 3-card breakdowns)","The failure slide inoculates against magical thinking","The manipulable cosine visual lets the brain “feel” the concept"],
+    weaknesses:["PredictPrompt exists but nothing forces a committed prediction before the reveal","Slide 2 stats are generic, not personal","Algorithms are shown as handed-down rather than invited via a question","Co-occurrence “neighbors” story is asserted, not shown with a concrete grid","No mid-deck check-for-understanding; Slide 7 divergence is info-dumped","“Hybrid” arrives only at Slide 9"] },
+  { key:'uiux', name:'UI/UX Designer', icon:'🎨', color:'violet', synth:true,
+    take:"Visually cohesive and polished, with a consistent obsidian palette, smooth motion, and thoughtful empty/loading states. The main UX gaps are navigation affordance and information density on the explainer slides.",
+    strengths:["Consistent accent system (indigo = keyword, emerald = semantic)","ScoreBar / ResultCard / CompactRow are clean and reusable","Reduced-motion and focus-visible support show real a11y care","The progress-dot nav is minimal and clear"],
+    weaknesses:["No on-screen hint that the deck is keyboard-drivable","Explainer slides are text-dense and may overflow on shorter viewports","The mailto-only CTA is a dead-end on devices without a mail client","No persistent brand / share affordance","Chart x-axis labels truncated to 20 chars can render ambiguous bars"] },
 ];
 
 const THEMES = [
-  { t:"“When/why would I use each?” is unanswered", d:"Takeaways gives generic pros/cons and “use both” but no concrete decision guidance or real scenario.", who:["beginner","advanced","learning","marketer"] },
-  { t:"The semantic mechanism is never made intuitive", d:"No vector/cosine-angle visual, no analogy for why rarity (IDF) matters, jargon dropped without teaching.", who:["beginner","advanced","learning"] },
-  { t:"Pre-filled demo queries kill the learning moment", d:"Demos auto-populate from EXAMPLES, so audiences watch a scripted demo instead of predicting then testing.", who:["beginner","learning"] },
-  { t:"Honesty / framing of “semantic”", d:"“Understands meaning/intent” overclaims a TF-IDF model; the 650ms delay can mislead about real latency.", who:["advanced","beginner"] },
-  { t:"Brand is invisible and there’s no next step", d:"One gray footer mention, no logo, no CTA, no ROI framing.", who:["marketer","uiux"] },
-  { t:"Polish ceiling on visuals/data-viz & accessibility", d:"Plain chart, thin bars, flat hierarchy, near-invisible “unique” dot, missing reduced-motion support.", who:["uiux","learning"] },
+  { t:"Jargon outruns explanation; the “why” is asserted, not shown", d:"TF-IDF, IDF, cosine, “embeddings,” and “neighbors” appear before a plain-English gloss; the co-occurrence mechanism — the actual reason semantic resists category conflation — is invisible.", who:["beginner","advanced","learning"] },
+  { t:"Asymmetric transparency: only semantic explains itself", d:"Semantic has “why ranked?”; keyword has none, so its scoring feels opaque to beginners and unexamined to learners.", who:["beginner","learning"] },
+  { t:"Prediction-before-reveal is set up but not enforced", d:"PredictPrompt is the empty state, yet nothing forces a committed guess before results appear, blunting the retrieval-practice payoff.", who:["learning","advanced"] },
+  { t:"Brand + CTA are an afterthought", d:"Obsidian Software is small and late; the CTA is a single vague mailto; no proof, no low-friction options, no shareability.", who:["marketer"] },
+  { t:"Precision framing of “semantic”", d:"“Compares meaning” on the title slide overstates what 60-item co-occurrence vectors do; the guardrail arrives only on Slide 5.", who:["advanced","beginner"] },
+  { t:"“Why this matters” is abstract", d:"Slide 2's stats are generic industry figures with no personal hook or relatable scenario to prime curiosity.", who:["beginner","learning"] },
 ];
 
+// done:true == shipped in the round-2 implementation pass
 const BACKLOG = [
-  {imp:'High',eff:'Med',  who:['beginner','advanced','learning'], t:"Add a vector + cosine-angle visual to ExplainSemantic", why:"Turns the intimidating (A·B)/(‖A‖‖B‖) formula into intuition — the #1 comprehension gap"},
-  {imp:'High',eff:'Small',who:['beginner','learning'], t:"Empty demo search boxes (remove EXAMPLES auto-run)", why:"Forces predict-then-test; that’s where retention sticks vs watching a script"},
-  {imp:'High',eff:'Small',who:['beginner','learning','advanced'], t:"Add IDF/TF-IDF analogy before the formula", why:"Makes the model feel logical, not magical; explains why rarity matters"},
-  {imp:'High',eff:'Small',who:['learning','beginner'], t:"Add prediction prompts before each demo", why:"Prediction effect raises retention ~15–20%; cheap friction, high payoff"},
-  {imp:'High',eff:'Small',who:['advanced','beginner'], t:"Honest relabel: “TF-IDF model, not neural embeddings”", why:"Prevents misconceptions; signals technical integrity to expert evaluators"},
-  {imp:'High',eff:'Small',who:['marketer','uiux'], t:"Branded footer + contact (logo, name, email)", why:"Prospects currently can’t tell who built it or how to reach them"},
-  {imp:'High',eff:'Small',who:['marketer'], t:"Add a CTA to Takeaways (“Let’s talk”)", why:"Presentation ends with zero conversion path"},
-  {imp:'High',eff:'Small',who:['marketer'], t:"Founder/company intro line on SlideTitle", why:"Establishes authority and specialization on first impression"},
-  {imp:'High',eff:'Small',who:['uiux'], t:"prefers-reduced-motion to disable 60+ animations", why:"Accessibility — non-negotiable for vestibular-sensitive users"},
-  {imp:'High',eff:'Med',  who:['beginner','advanced','learning','marketer'], t:"Rewrite Takeaways with concrete use cases + why blend", why:"Answers the most-repeated question across personas"},
-  {imp:'High',eff:'Med',  who:['uiux'], t:"Elevate the chart: mount animation, labels, taller, grid", why:"Data-viz is the centerpiece of Comparison but reads as generic"},
-  {imp:'High',eff:'Small',who:['learning'], t:"Anchor semantic to a memorable co-occurrence analogy", why:"Gives audiences a sticky internal model, not just a diagram"},
-  {imp:'High',eff:'Med',  who:['uiux'], t:"Stronger visual identity: accent color + custom font", why:"Differentiates from corporate Tailwind defaults for a portfolio"},
-  {imp:'Med', eff:'Small',who:['advanced'], t:"Clarify 650ms scan is animation-only, not latency", why:"Stops students inferring semantic is intrinsically 1000x slower"},
-  {imp:'Med', eff:'Small',who:['uiux'], t:"Differentiate typographic hierarchy across slides", why:"~20% perceived professionalism gain at near-zero cost"},
-  {imp:'Med', eff:'Small',who:['uiux','learning'], t:"Make “unique to engine” a labeled badge, not a 2px dot", why:"Currently invisible; the key insight of Comparison is missed"},
-  {imp:'Med', eff:'Med',  who:['learning','advanced'], t:"Add a failure-case demo (typo / niche term)", why:"Prevents overgeneralizing that semantic always wins; models honesty"},
-  {imp:'Med', eff:'Small',who:['beginner'], t:"Explain why stop words are filtered", why:"Removes an unexplained “magic” step"},
-  {imp:'Med', eff:'Small',who:['advanced'], t:"Note why cosine scores look low (high-dim sparsity)", why:"Explains the score distribution students will notice"},
-  {imp:'Med', eff:'Med',  who:['advanced'], t:"Mention BM25 as the real keyword baseline", why:"Sets correct expectations; the custom formula isn’t standard"},
-  {imp:'Med', eff:'Small',who:['uiux'], t:"Focus rings, nav button icons, pill active states", why:"Keyboard accessibility + polish on nav and SearchBox pills"},
-  {imp:'Med', eff:'Small',who:['uiux'], t:"Boost ScoreBar weight for projector legibility", why:"Bars are the primary magnitude cue; they fade at distance"},
-  {imp:'Med', eff:'Small',who:['learning'], t:"Add explicit learning objectives to SlideTitle", why:"Frames attention; raises transfer"},
-  {imp:'Med', eff:'Med',  who:['marketer'], t:"Business-case/ROI slide before ExplainKeyword", why:"Gives prospects a reason to care before technical detail"},
-  {imp:'Med', eff:'Med',  who:['marketer'], t:"Case-study / proof-point callout on Comparison", why:"Proof multiplies credibility"},
-  {imp:'Med', eff:'Med',  who:['marketer'], t:"“Services & Next Steps” slide after Takeaways", why:"Gives clients a clear engagement menu"},
-  {imp:'Med', eff:'Med',  who:['beginner'], t:"Worked example of the keyword scoring formula", why:"Makes the formula memorable"},
-  {imp:'High',eff:'Large',who:['advanced'], t:"Quantify sparse-vs-dense architecture", why:"Teaches the structural gap to TF-IDF vs BERT"},
-  {imp:'Med', eff:'Med',  who:['uiux'], t:"Dark / presentation mode toggle", why:"Projector legibility; feels like a real presentation tool"},
+  {imp:'High',eff:'Small',done:1,who:['beginner','advanced'], t:"Layer the jargon on Slide 5 (gloss TF-IDF, cluster story before math)", why:"Removes the #1 lock-out for beginners; sharpens precision for CS students"},
+  {imp:'High',eff:'Small',done:1,who:['beginner'], t:"Rewrite Slide 3 keyword score narrative-first, formula second", why:"Beginners zone out at the formula; story-then-notation respects learning order"},
+  {imp:'High',eff:'Small',done:1,who:['advanced','beginner'], t:"Reframe Slide 1 “compares meaning” → “approximates meaning” + 60-vs-billions caveat", why:"Prevents the neural-embeddings conflation from the first slide"},
+  {imp:'High',eff:'Small',done:1,who:['marketer'], t:"Persistent brand (header/footer logo + sticky contact)", why:"Buyers leave remembering the algorithm, not the company"},
+  {imp:'High',eff:'Small',done:1,who:['marketer'], t:"Rewrite CTA: “Book a 15-min search audit” + pain checklist", why:"Generic mailto kills conversion; specificity gives a reason to click"},
+  {imp:'High',eff:'Small',done:1,who:['learning'], t:"Hard prediction gate before each live demo", why:"Prediction-before-reveal is the highest-ROI retention move, half-built already"},
+  {imp:'High',eff:'Med',done:1,who:['beginner','learning'], t:"Add “why ranked?” to keyword results (title/body/phrase)", why:"Restores symmetry; demystifies keyword scoring"},
+  {imp:'High',eff:'Med',done:1,who:['advanced','learning'], t:"Unpack co-occurrence “neighbors” with a concrete grid on Slide 5", why:"The deepest insight (why semantic resists category conflation), currently invisible"},
+  {imp:'High',eff:'Med',done:1,who:['marketer'], t:"Credibility section before the CTA (illustrative outcomes)", why:"“Hypothetical, not battle-tested” is the core sales objection"},
+  {imp:'High',eff:'Med',done:1,who:['marketer'], t:"Proof/services with concrete outcomes (“cut no-results 12%→2%”)", why:"Real (or clearly illustrative) numbers convert"},
+  {imp:'Med',eff:'Small',done:1,who:['beginner'], t:"Name “stop words” in plain English first", why:"Gives a mental model before the jargon hits"},
+  {imp:'Med',eff:'Small',done:1,who:['beginner','learning'], t:"Clarify what “related” means in semantic tooltips", why:"Delivers the “aha” for why semantic retrieval works"},
+  {imp:'Med',eff:'Small',done:1,who:['beginner','learning'], t:"Ground Slide 2 with a personal scenario", why:"Primes curiosity; makes the next 5 slides answer a felt question"},
+  {imp:'Med',eff:'Small',done:1,who:['advanced'], t:"Document/justify the magic numbers as comments", why:"CS students see dials, not magic"},
+  {imp:'Med',eff:'Small',done:1,who:['advanced'], t:"Expand the BM25 note (term saturation, not “just tuned”)", why:"Corrects a misleading dismissal for the CS audience"},
+  {imp:'Med',eff:'Small',done:1,who:['learning'], t:"Plant the “hybrid” hypothesis early (after Slide 5/6)", why:"Sets up Slide 7/9 as answers to a question learners are forming"},
+  {imp:'Med',eff:'Small',done:1,who:['marketer'], t:"CTA choice + alt contact (LinkedIn / email)", why:"Different buyers have different friction tolerances"},
+  {imp:'Med',eff:'Small',done:1,who:['marketer'], t:"Sales bridge into the Takeaways slide", why:"Primes the sell without breaking the teaching tone"},
+  {imp:'Med',eff:'Small',done:0,who:['learning'], t:"Introduce each algorithm via a guiding question", why:"Invites the algorithm from first principles instead of handing it down"},
+  {imp:'Med',eff:'Small',done:0,who:['marketer'], t:"Shareability: footer watermark + QR / short URL + copy-link", why:"Enables credit and forwarding from a live room"},
+  {imp:'Med',eff:'Med',done:0,who:['learning'], t:"Mid-deck check-for-understanding (forced-choice)", why:"Surfaces misconceptions live; makes the semantic slide land harder"},
+  {imp:'Med',eff:'Med',done:0,who:['learning'], t:"Make the Slide 7 divergence a prediction before the chart", why:"Turns passive observation into active reasoning"},
+  {imp:'Med',eff:'Med',done:0,who:['beginner'], t:"Step-by-step “guided example” walkthrough on keyword demo", why:"Decouples understanding the algorithm from running queries"},
+  {imp:'Med',eff:'Med',done:0,who:['advanced'], t:"Fuller cosine geometry note (unit-vector dot product, why not Euclidean)", why:"Closes an assumed-knowledge gap"},
+  {imp:'Med',eff:'Med',done:0,who:['beginner'], t:"Glossary tooltip/footnote for one-off terms (BM25, embeddings)", why:"Lets curious beginners go deeper without slowing the narrative"},
+  {imp:'Med',eff:'Large',done:0,who:['advanced'], t:"Expose blend-weight as a live slider on the demo", why:"Makes “tuning hyperparameters” tactile; worth 1000 words"},
 ];
 
 const ROADMAP = {
-  Now:["Branded footer + contact; CTA + founder line on SlideTitle","Empty demo boxes + prediction prompt (drop EXAMPLES auto-run)","prefers-reduced-motion support","Honest “semantic” relabel + IDF/stop-word analogy","Note 650ms is animation-only; tighten type; labeled “unique” badge"],
-  Next:["Vector/cosine-angle visual + co-occurrence “neighbors” analogy","Rewrite Takeaways with use cases + why blend","Services & Next Steps slide + ROI slide + proof point on Comparison","Upgrade chart + ScoreBar weight; focus states + nav icons","Failure-case demo + mention BM25"],
-  Later:["Interactive 2D vector-space explorer (cosine = angle, made visceral)","“Explain this ranking” per-term TF-IDF breakdown button","Hybrid search mode with keyword/semantic weighting slider","“Bring your own catalog” — paste real product titles","Sparse-vs-dense slide; dark mode; spaced-retrieval quiz"],
+  Now:["De-jargon Slide 5; swap “embeddings”→“meaning neighbors”; front-load the cluster story","Slide 3 keyword score narrative-first; name “stop words” plainly first","Reframe Slide 1 “compares meaning”→“approximates meaning” + caveat","Persistent brand (logo + sticky contact from Slide 2)","Replace vague mailto with “Book a 15-min search audit” + pain checklist + alt contacts","Hard prediction gate before both live demos","Ground Slide 2 with a personal “you searched X and got Y” scenario"],
+  Next:["“Why ranked?” on keyword results for transparency parity","Show the co-occurrence “neighbors” mechanism with a concrete grid","Credibility/case-study section with illustrative outcomes before the CTA","Document the magic numbers; expand the BM25 note","Mid-deck check-for-understanding + a prediction before the Slide 7 chart","Plant the hybrid hypothesis early; thread a sales bridge into Takeaways"],
+  Later:["“Test your data” mode: paste/upload a real catalog and run both engines live","Live blend-weight & self-anchor sliders that re-rank in real time","Live co-occurrence heat map + an “algorithm inspector” auditing each scoring step","Audience-participation modes: live “class search,” predict-and-reveal game, “how production fixes typos” column","Downloadable “Search Audit Checklist” lead magnet with email capture"],
 };
 
 /* ---------- HELPERS ---------- */
-const C = {emerald:'emerald',indigo:'indigo',rose:'rose',amber:'amber',violet:'violet'};
 const personaColor = (k)=>({beginner:'emerald',advanced:'indigo',marketer:'rose',learning:'amber',uiux:'violet'}[k]);
 const personaName  = (k)=>({beginner:'Beginner',advanced:'Advanced',marketer:'Marketer',learning:'Learning Design',uiux:'UI/UX'}[k]);
 
-function Badge({children,tone}){
-  const tones={
-    High:'bg-rose-100 text-rose-700', Med:'bg-amber-100 text-amber-700', Low:'bg-slate-100 text-slate-600',
-    Small:'bg-emerald-100 text-emerald-700', Large:'bg-violet-100 text-violet-700',
-  };
-  return <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tones[children]||tones[tone]||'bg-slate-100 text-slate-600'}`}>{children}</span>;
+function Badge({children}){
+  const tones={High:'bg-rose-100 text-rose-700',Med:'bg-amber-100 text-amber-700',Small:'bg-emerald-100 text-emerald-700',Large:'bg-violet-100 text-violet-700'};
+  return <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${tones[children]||'bg-slate-100 text-slate-600'}`}>{children}</span>;
 }
 function Chip({k}){
   const c=personaColor(k);
@@ -112,21 +106,23 @@ function Chip({k}){
 
 /* ---------- SECTIONS ---------- */
 function Hero(){
+  const shipped=BACKLOG.filter(b=>b.done).length;
   return (
     <header className="bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 text-white">
       <div className="max-w-5xl mx-auto px-6 py-14">
-        <span className="text-xs font-semibold tracking-[0.3em] text-indigo-300 uppercase">5-Persona Expert Review</span>
+        <span className="text-xs font-semibold tracking-[0.3em] text-indigo-300 uppercase">5-Persona Expert Review · Round 2</span>
         <h1 className="text-4xl md:text-5xl font-extrabold mt-3 leading-tight">Critique &amp; Project Goals</h1>
-        <p className="text-indigo-200 mt-1 text-lg">Semantic vs Keyword Search — interactive demo</p>
+        <p className="text-indigo-200 mt-1 text-lg">Semantic vs Keyword Search — after the round-1 improvements</p>
         <p className="mt-6 max-w-3xl text-slate-200 leading-relaxed">
-          A genuinely polished single-file React presentation that makes the keyword-vs-semantic difference
-          <em> tangible</em>. The three biggest gaps are consistent across reviewers: it shows <strong>that</strong> the
-          algorithms differ without teaching <strong>why</strong>, it mislabels a statistical TF-IDF model as true
-          “semantic understanding,” and — for a portfolio piece — it makes <strong>Obsidian Software nearly
-          invisible</strong>. The single biggest opportunity: close the loop from <em>demonstration</em> to
-          <em> understanding</em> and <em> conversion</em>.
+          The verdict moved up a tier: an <strong>A-grade teaching artifact</strong> wrapped in a <strong>C-grade sales shell</strong> that
+          under-explains its own jargon for true beginners. The biggest opportunity now is to <strong>close the comprehension gap
+          for non-experts</strong> (layered jargon, “why ranked?” for keyword, narrative-before-formula) while elevating the brand and
+          CTA from a footnote into a credible, low-friction close — without sacrificing the honesty that makes it trustworthy.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3 text-sm">
+        <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-500/15 border border-emerald-400/30 px-4 py-2 text-sm text-emerald-200">
+          <span className="text-emerald-300">✓</span> {shipped} of {BACKLOG.length} backlog items already shipped in the follow-up pass
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3 text-sm">
           {[['🌱','Beginner'],['🎓','Advanced'],['📣','Marketer'],['🧩','Learning'],['🎨','UI/UX']].map(([i,n])=>(
             <span key={n} className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur">{i} {n}</span>
           ))}
@@ -137,7 +133,7 @@ function Hero(){
 }
 
 function Nav(){
-  const items=[['summary','Personas'],['themes','Themes'],['backlog','Backlog'],['roadmap','Roadmap'],['vision','Vision']];
+  const items=[['progress','Round 1 → 2'],['summary','Personas'],['themes','Themes'],['backlog','Backlog'],['roadmap','Roadmap'],['vision','Vision']];
   return (
     <nav className="sticky top-0 z-20 bg-white/85 backdrop-blur border-b border-slate-200">
       <div className="max-w-5xl mx-auto px-6 flex gap-1 overflow-x-auto">
@@ -149,40 +145,78 @@ function Nav(){
   );
 }
 
+function Progress(){
+  const rows=[
+    ['Semantic “aha” shown?','Biggest gap — not shown','✅ Cosine slider “brilliant”; failure case builds trust'],
+    ['Honesty of “semantic”','Overclaims meaning','✅ “not neural embeddings” + failure slide praised as integrity'],
+    ['Auto-running demos','Kills the learning moment','✅ PredictPrompt is the default empty state'],
+    ['“When/why use each?”','Unanswered (4 personas)','✅ Resolved — no longer a theme'],
+    ['Decision guidance / hybrid','Missing','✅ Hybrid conclusion “frames production reality correctly”'],
+  ];
+  return (
+    <section id="progress" className="max-w-5xl mx-auto px-6 py-12">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">What changed since Round 1</h2>
+      <p className="text-slate-500 mb-6 text-sm">Five of six round-1 cross-cutting themes are gone. The critique escalated to a more sophisticated tier — the sign of real progress.</p>
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full text-sm bg-white">
+          <thead><tr className="bg-slate-50 text-slate-500 text-left">
+            <th className="px-4 py-3 font-semibold">Dimension</th>
+            <th className="px-4 py-3 font-semibold">Round 1</th>
+            <th className="px-4 py-3 font-semibold">Round 2</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r,i)=>(
+              <tr key={i} className="border-t border-slate-100">
+                <td className="px-4 py-3 font-medium text-slate-700">{r[0]}</td>
+                <td className="px-4 py-3 text-slate-400">{r[1]}</td>
+                <td className="px-4 py-3 text-emerald-700">{r[2]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-4 text-xs text-slate-400">Scope note: this round, only 4 of 5 personas returned structured output — the UI/UX section was synthesized from the code and is flagged below.</p>
+    </section>
+  );
+}
+
 function PersonaCards(){
   const [open,setOpen]=useState('beginner');
   return (
-    <section id="summary" className="max-w-5xl mx-auto px-6 py-12">
-      <h2 className="text-2xl font-bold text-slate-900 mb-1">Per-Persona Critique</h2>
-      <p className="text-slate-500 mb-6 text-sm">Click a persona to expand their full take.</p>
-      <div className="space-y-3">
-        {PERSONAS.map(p=>{
-          const isOpen=open===p.key, c=p.color;
-          return (
-            <div key={p.key} className={`rounded-xl border bg-white overflow-hidden transition-all ${isOpen?`border-${c}-300 shadow-md`:'border-slate-200'}`}>
-              <button onClick={()=>setOpen(isOpen?'':p.key)} className="w-full flex items-center gap-3 px-5 py-4 text-left">
-                <span className="text-2xl">{p.icon}</span>
-                <span className="font-semibold text-slate-800 flex-1">{p.name}</span>
-                <span className={`text-${c}-500 transition-transform ${isOpen?'rotate-180':''}`}>▾</span>
-              </button>
-              {isOpen&&(
-                <div className="px-5 pb-5 fade">
-                  <p className="text-sm text-slate-600 italic border-l-2 border-slate-200 pl-3 mb-4">{p.take}</p>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-600 mb-2">✓ Strengths</h4>
-                      <ul className="space-y-1.5 text-sm text-slate-600">{p.strengths.map((s,i)=><li key={i} className="flex gap-2"><span className="text-emerald-500">•</span>{s}</li>)}</ul>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wide text-rose-600 mb-2">✗ Weaknesses</h4>
-                      <ul className="space-y-1.5 text-sm text-slate-600">{p.weaknesses.map((s,i)=><li key={i} className="flex gap-2"><span className="text-rose-400">•</span>{s}</li>)}</ul>
+    <section id="summary" className="bg-white border-y border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-1">Per-Persona Critique</h2>
+        <p className="text-slate-500 mb-6 text-sm">Click a persona to expand their full take.</p>
+        <div className="space-y-3">
+          {PERSONAS.map(p=>{
+            const isOpen=open===p.key, c=p.color;
+            return (
+              <div key={p.key} className={`rounded-xl border bg-white overflow-hidden transition-all ${isOpen?`border-${c}-300 shadow-md`:'border-slate-200'}`}>
+                <button onClick={()=>setOpen(isOpen?'':p.key)} className="w-full flex items-center gap-3 px-5 py-4 text-left">
+                  <span className="text-2xl">{p.icon}</span>
+                  <span className="font-semibold text-slate-800 flex-1">{p.name}</span>
+                  {p.synth && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">synthesized from code</span>}
+                  <span className={`text-${c}-500 transition-transform ${isOpen?'rotate-180':''}`}>▾</span>
+                </button>
+                {isOpen&&(
+                  <div className="px-5 pb-5 fade">
+                    <p className="text-sm text-slate-600 italic border-l-2 border-slate-200 pl-3 mb-4">{p.take}</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-emerald-600 mb-2">✓ Strengths</h4>
+                        <ul className="space-y-1.5 text-sm text-slate-600">{p.strengths.map((s,i)=><li key={i} className="flex gap-2"><span className="text-emerald-500">•</span>{s}</li>)}</ul>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-rose-600 mb-2">✗ Weaknesses</h4>
+                        <ul className="space-y-1.5 text-sm text-slate-600">{p.weaknesses.map((s,i)=><li key={i} className="flex gap-2"><span className="text-rose-400">•</span>{s}</li>)}</ul>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -190,24 +224,22 @@ function PersonaCards(){
 
 function Themes(){
   return (
-    <section id="themes" className="bg-white border-y border-slate-200">
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">Cross-Cutting Themes</h2>
-        <p className="text-slate-500 mb-6 text-sm">Independently raised by multiple personas — the highest-signal issues.</p>
-        <div className="grid md:grid-cols-2 gap-4">
-          {THEMES.map((th,i)=>(
-            <div key={i} className="rounded-xl border border-slate-200 p-5 hover:shadow-sm transition-shadow">
-              <div className="flex items-start gap-3">
-                <span className="flex-none w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold grid place-items-center">{i+1}</span>
-                <div>
-                  <h3 className="font-semibold text-slate-800">{th.t}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{th.d}</p>
-                  <div className="flex flex-wrap gap-1.5 mt-3">{th.who.map(w=><Chip key={w} k={w}/>)}</div>
-                </div>
+    <section id="themes" className="max-w-5xl mx-auto px-6 py-12">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Cross-Cutting Themes</h2>
+      <p className="text-slate-500 mb-6 text-sm">Independently raised by multiple personas — the highest-signal issues.</p>
+      <div className="grid md:grid-cols-2 gap-4">
+        {THEMES.map((th,i)=>(
+          <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-sm transition-shadow">
+            <div className="flex items-start gap-3">
+              <span className="flex-none w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold grid place-items-center">{i+1}</span>
+              <div>
+                <h3 className="font-semibold text-slate-800">{th.t}</h3>
+                <p className="text-sm text-slate-500 mt-1">{th.d}</p>
+                <div className="flex flex-wrap gap-1.5 mt-3">{th.who.map(w=><Chip key={w} k={w}/>)}</div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -216,48 +248,56 @@ function Themes(){
 function Backlog(){
   const [impF,setImpF]=useState('All');
   const [persF,setPersF]=useState('all');
+  const [statusF,setStatusF]=useState('all');
   const order={High:0,Med:1,Low:2}, effOrder={Small:0,Med:1,Large:2};
   const rows=useMemo(()=>BACKLOG
     .filter(r=>impF==='All'||r.imp===impF)
     .filter(r=>persF==='all'||r.who.includes(persF))
-    .sort((a,b)=>order[a.imp]-order[b.imp]||effOrder[a.eff]-effOrder[b.eff]),[impF,persF]);
-
-  const impBtns=['All','High','Med'];
+    .filter(r=>statusF==='all'||(statusF==='done'?r.done:!r.done))
+    .sort((a,b)=>order[a.imp]-order[b.imp]||effOrder[a.eff]-effOrder[b.eff]),[impF,persF,statusF]);
   const persBtns=[['all','All'],['beginner','🌱'],['advanced','🎓'],['marketer','📣'],['learning','🧩'],['uiux','🎨']];
+  const shipped=BACKLOG.filter(b=>b.done).length;
   return (
-    <section id="backlog" className="max-w-5xl mx-auto px-6 py-12">
-      <h2 className="text-2xl font-bold text-slate-900 mb-1">Prioritized Improvement Backlog</h2>
-      <p className="text-slate-500 mb-5 text-sm">Merged &amp; de-duplicated across all personas. Sorted by impact, then ascending effort. <span className="text-slate-400">Showing {rows.length} of {BACKLOG.length}.</span></p>
-
-      <div className="flex flex-wrap items-center gap-4 mb-5">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Impact</span>
-          {impBtns.map(b=>(
-            <button key={b} onClick={()=>setImpF(b)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${impF===b?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{b}</button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Persona</span>
-          {persBtns.map(([k,l])=>(
-            <button key={k} onClick={()=>setPersF(k)} title={k==='all'?'All':personaName(k)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${persF===k?'bg-indigo-600 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {rows.map((r,i)=>(
-          <div key={i} className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-sm transition-shadow fade">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-semibold text-slate-800 text-[15px]">{r.t}</h3>
-              <div className="flex-none flex gap-1.5">
-                <Badge>{r.imp}</Badge><Badge>{r.eff}</Badge>
-              </div>
-            </div>
-            <p className="text-sm text-slate-500 mt-1">{r.why}</p>
-            <div className="flex flex-wrap gap-1.5 mt-2.5">{r.who.map(w=><Chip key={w} k={w}/>)}</div>
+    <section id="backlog" className="bg-white border-y border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-1">Prioritized Improvement Backlog</h2>
+        <p className="text-slate-500 mb-5 text-sm">Merged across personas, sorted by impact then effort. <span className="text-emerald-700 font-medium">{shipped} shipped</span> · <span className="text-slate-400">showing {rows.length} of {BACKLOG.length}.</span></p>
+        <div className="flex flex-wrap items-center gap-4 mb-5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Impact</span>
+            {['All','High','Med'].map(b=>(
+              <button key={b} onClick={()=>setImpF(b)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${impF===b?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{b}</button>
+            ))}
           </div>
-        ))}
-        {rows.length===0&&<div className="text-center text-slate-400 py-10">No items match those filters.</div>}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Status</span>
+            {[['all','All'],['done','✓ Shipped'],['todo','To do']].map(([k,l])=>(
+              <button key={k} onClick={()=>setStatusF(k)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${statusF===k?'bg-emerald-600 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{l}</button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Persona</span>
+            {persBtns.map(([k,l])=>(
+              <button key={k} onClick={()=>setPersF(k)} title={k==='all'?'All':personaName(k)} className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${persF===k?'bg-indigo-600 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {rows.map((r,i)=>(
+            <div key={i} className={`rounded-lg border p-4 hover:shadow-sm transition-shadow fade ${r.done?'border-emerald-200 bg-emerald-50/40':'border-slate-200 bg-white'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-semibold text-slate-800 text-[15px] flex items-center gap-2">
+                  {r.done && <span className="flex-none text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white">✓ SHIPPED</span>}
+                  {r.t}
+                </h3>
+                <div className="flex-none flex gap-1.5"><Badge>{r.imp}</Badge><Badge>{r.eff}</Badge></div>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">{r.why}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2.5">{r.who.map(w=><Chip key={w} k={w}/>)}</div>
+            </div>
+          ))}
+          {rows.length===0&&<div className="text-center text-slate-400 py-10">No items match those filters.</div>}
+        </div>
       </div>
     </section>
   );
@@ -266,31 +306,30 @@ function Backlog(){
 function Roadmap(){
   const cols=[
     {k:'Now',  sub:'Quick wins — small effort, high payoff', c:'emerald', tag:'⚡'},
-    {k:'Next', sub:'Core teaching + selling upgrade', c:'indigo', tag:'🛠️'},
+    {k:'Next', sub:'Medium effort — teaching + selling depth', c:'indigo', tag:'🛠️'},
     {k:'Later',sub:'Ambitious / wow', c:'violet', tag:'🚀'},
   ];
   return (
-    <section id="roadmap" className="bg-white border-y border-slate-200">
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Project Goals &amp; Roadmap</h2>
-        <div className="grid md:grid-cols-3 gap-5">
-          {cols.map(col=>(
-            <div key={col.k} className={`rounded-2xl border-2 border-${col.c}-200 bg-${col.c}-50/40 p-5`}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl">{col.tag}</span>
-                <h3 className={`text-lg font-bold text-${col.c}-700`}>{col.k}</h3>
-              </div>
-              <p className="text-xs text-slate-500 mb-4">{col.sub}</p>
-              <ul className="space-y-2.5">
-                {ROADMAP[col.k].map((g,i)=>(
-                  <li key={i} className="text-sm text-slate-700 flex gap-2">
-                    <span className={`flex-none mt-1 w-1.5 h-1.5 rounded-full bg-${col.c}-500`}></span>{g}
-                  </li>
-                ))}
-              </ul>
+    <section id="roadmap" className="max-w-5xl mx-auto px-6 py-12">
+      <h2 className="text-2xl font-bold text-slate-900 mb-1">Project Goals &amp; Roadmap</h2>
+      <p className="text-slate-500 mb-6 text-sm">Most of <strong>Now</strong> and much of <strong>Next</strong> shipped in the follow-up pass; the remainder is below.</p>
+      <div className="grid md:grid-cols-3 gap-5">
+        {cols.map(col=>(
+          <div key={col.k} className={`rounded-2xl border-2 border-${col.c}-200 bg-${col.c}-50/40 p-5`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl">{col.tag}</span>
+              <h3 className={`text-lg font-bold text-${col.c}-700`}>{col.k}</h3>
             </div>
-          ))}
-        </div>
+            <p className="text-xs text-slate-500 mb-4">{col.sub}</p>
+            <ul className="space-y-2.5">
+              {ROADMAP[col.k].map((g,i)=>(
+                <li key={i} className="text-sm text-slate-700 flex gap-2">
+                  <span className={`flex-none mt-1 w-1.5 h-1.5 rounded-full bg-${col.c}-500`}></span>{g}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -298,27 +337,27 @@ function Roadmap(){
 
 function Vision(){
   return (
-    <section id="vision" className="max-w-5xl mx-auto px-6 py-14">
-      <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900 text-white p-8 md:p-10">
-        <h2 className="text-xl font-bold text-indigo-300 mb-3">★ North-Star Vision</h2>
-        <p className="text-lg leading-relaxed text-slate-100">
-          A single, self-contained interactive artifact that a beginner finishes <em>understanding</em> — not just seeing —
-          why semantic search surfaces an “affordable sofa” you never named, with an intuitive grasp of vectors,
-          cosine angle, and when each method wins. It is intellectually honest enough that an IR expert nods at the framing,
-          and crafted and branded well enough that a prospect immediately knows <strong>Obsidian Software</strong> built it,
-          why search relevance moves revenue, and exactly how to start a conversation.
-        </p>
-        <p className="mt-4 text-2xl font-bold bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">
-          The demo is the pitch: it teaches brilliantly and sells the brand in the same breath.
-        </p>
+    <section id="vision" className="bg-white border-t border-slate-200">
+      <div className="max-w-5xl mx-auto px-6 py-14">
+        <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-900 text-white p-8 md:p-10">
+          <h2 className="text-xl font-bold text-indigo-300 mb-3">★ North-Star Vision</h2>
+          <p className="text-lg leading-relaxed text-slate-100">
+            A single, shareable file that a complete beginner finishes feeling they truly <em>understand</em> why semantic search finds intent —
+            not just that it does — while a CS student leaves respecting the precision of its framing and an enterprise buyer leaves with
+            Obsidian Software's name, proof of impact, and a one-click way to book a conversation.
+          </p>
+          <p className="mt-4 text-2xl font-bold bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">
+            It teaches brilliantly and sells credibly — because the same radical transparency is what makes both the lesson and the brand trustworthy.
+          </p>
+        </div>
+        <p className="text-center text-xs text-slate-400 mt-8">Synthesized from a 5-persona multi-agent review (Round 2) · Obsidian Software</p>
       </div>
-      <p className="text-center text-xs text-slate-400 mt-8">Synthesized from a 5-persona multi-agent review · Obsidian Software</p>
     </section>
   );
 }
 
 function App(){
-  return (<div><Hero/><Nav/><PersonaCards/><Themes/><Backlog/><Roadmap/><Vision/></div>);
+  return (<div><Hero/><Nav/><Progress/><PersonaCards/><Themes/><Backlog/><Roadmap/><Vision/></div>);
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
