@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Semantic vs Keyword Search — Interactive Presentation</title>
+  <title>Semantic vs Keyword Search — Interactive Presentation · Obsidian Software</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -11,35 +11,34 @@
     tailwind.config = {
       theme: {
         extend: {
+          fontFamily: { display: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
           colors: {
             obsidian: {
-              50: '#f4f5fb', 100: '#e7e9f6', 200: '#d0d4ee',
-              500: '#6366f1', 600: '#5b5bd6', 700: '#4f46b8',
-              900: '#1e1b4b', 950: '#0f0d2e'
+              50:'#f4f5fb',100:'#e7e9f6',200:'#d0d4ee',300:'#aab1e0',
+              400:'#7f88cd',500:'#6366f1',600:'#5b5bd6',700:'#4f46b8',
+              800:'#3f3a92',900:'#1e1b4b',950:'#0f0d2e'
             }
           },
           keyframes: {
-            scanIn: {
-              '0%':   { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
-              '100%': { opacity: '1', transform: 'translateY(0) scale(1)' }
-            },
-            slideIn: {
-              '0%':   { opacity: '0', transform: 'translateX(24px)' },
-              '100%': { opacity: '1', transform: 'translateX(0)' }
-            },
-            barGrow: { '0%': { width: '0%' }, '100%': { width: 'var(--bar-w)' } },
-            pulseScan: { '0%,100%': { opacity: '0.35' }, '50%': { opacity: '1' } }
+            scanIn:{'0%':{opacity:'0',transform:'translateY(10px) scale(0.98)'},'100%':{opacity:'1',transform:'translateY(0) scale(1)'}},
+            slideIn:{'0%':{opacity:'0',transform:'translateX(24px)'},'100%':{opacity:'1',transform:'translateX(0)'}},
+            barGrow:{'0%':{width:'0%'},'100%':{width:'var(--bar-w)'}},
+            pulseScan:{'0%,100%':{opacity:'0.35'},'50%':{opacity:'1'}},
+            floatY:{'0%,100%':{transform:'translateY(0)'},'50%':{transform:'translateY(-6px)'}}
           },
           animation: {
-            scanIn: 'scanIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
-            slideIn: 'slideIn 0.4s cubic-bezier(0.22,1,0.36,1) both',
-            barGrow: 'barGrow 0.7s cubic-bezier(0.22,1,0.36,1) both',
-            pulseScan: 'pulseScan 1s ease-in-out infinite'
+            scanIn:'scanIn 0.45s cubic-bezier(0.22,1,0.36,1) both',
+            slideIn:'slideIn 0.4s cubic-bezier(0.22,1,0.36,1) both',
+            barGrow:'barGrow 0.7s cubic-bezier(0.22,1,0.36,1) both',
+            pulseScan:'pulseScan 1s ease-in-out infinite',
+            floatY:'floatY 4s ease-in-out infinite'
           }
         }
       }
     }
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- React + ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -53,7 +52,18 @@
   <style>
     html, body, #root { height: 100%; }
     body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    h1,h2,h3 { font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
     ::selection { background: #c7d2fe; }
+    :focus-visible { outline: 3px solid #6366f1; outline-offset: 2px; border-radius: 6px; }
+    /* Accessibility: respect reduced-motion across the 60+ animations */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-slate-100">
@@ -61,7 +71,9 @@
 
   <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef } = React;
-const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } = Recharts;
+const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Cell } = Recharts;
+
+const BRAND = { name: 'Obsidian Software', founder: 'Shannon Williams', email: 'williamsshannonj@gmail.com' };
 
 /* ============================================================
    1. SAMPLE DATASET  (60 items: marketplace + a few news)
@@ -129,7 +141,7 @@ const DATASET = [
   { id: 53, category: 'news', title: 'School district unveils new science wing', description: 'The high school cut the ribbon on a modern lab building funded by a recent bond. Students start classes there Monday.', metadata: ['school','education','science','district','local'] },
   { id: 54, category: 'news', title: 'Severe storm prompts weekend flood warnings', description: 'Forecasters warn of heavy rain and rising rivers across the region. Residents are urged to prepare and avoid travel.', metadata: ['weather','storm','flood','warning','safety'] },
 
-  // ---- A few more furniture/electronics for semantic depth ----
+  // ---- A few more for semantic depth ----
   { id: 55, category: 'furniture', title: 'Glass-top modern console table', description: 'Sleek entryway table with a tempered glass surface and chrome frame. A minimalist accent for a hallway.', metadata: ['table','glass','console','modern','entryway'] },
   { id: 56, category: 'furniture', title: 'Plush sectional sofa, like new', description: 'Spacious L-shaped couch in beige with deep cushions. Comfortably seats the whole family for movie night.', metadata: ['sofa','sectional','couch','living room','seating'] },
   { id: 57, category: 'electronics', title: 'Entry-level digital piano keyboard', description: '88 weighted keys with built-in speakers and headphone output. A budget instrument for learning at home.', metadata: ['piano','keyboard','music','digital','affordable'] },
@@ -139,113 +151,133 @@ const DATASET = [
 ];
 
 /* ============================================================
-   2. TEXT UTILITIES + EMBEDDINGS (TF-IDF, deterministic)
+   2. TEXT UTILITIES + MODELS
    ============================================================ */
-const STOP = new Set(['the','a','an','and','or','for','with','of','to','in','on','at','is','it','that','this','from','your','any','all','as','by','be','are']);
+const STOP = new Set(['the','a','an','and','or','for','with','of','to','in','on','at','is','it','that','this','from','your','any','all','as','by','be','are','set','new','used','great','full','like','more','most','out','up','plenty','assorted','everything','must','go']);
 
-function tokenize(text) {
-  return (text || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+function tokenize(text){ return (text || '').toLowerCase().match(/[a-z0-9]+/g) || []; }
+// category is included so concept words like "furniture" are searchable
+function docText(item){ return `${item.title} ${item.description} ${item.metadata.join(' ')} ${item.category}`; }
+function contentTokens(item){ return tokenize(docText(item)).filter((t) => !STOP.has(t) && t.length > 1); }
+
+function normalize(v){
+  let s = 0; for (const k in v) s += v[k]*v[k];
+  s = Math.sqrt(s) || 1;
+  const o = {}; for (const k in v) o[k] = v[k]/s;
+  return o;
 }
-function docText(item) {
-  return `${item.title} ${item.description} ${item.metadata.join(' ')}`;
+function addInto(target, vec, scale){ for (const k in vec) target[k] = (target[k] || 0) + vec[k]*scale; return target; }
+function cosine(a, b){
+  let dot = 0;
+  const small = Object.keys(a).length < Object.keys(b).length ? a : b;
+  const other = small === a ? b : a;
+  for (const k in small) if (other[k]) dot += a[k]*b[k];
+  return dot; // both normalized
 }
 
-// Build vocabulary + IDF across the corpus (deterministic)
-function buildModel(items) {
-  const df = {};                       // document frequency
-  const docTokens = items.map((it) => {
-    const toks = tokenize(docText(it)).filter((t) => !STOP.has(t) && t.length > 1);
-    const seen = new Set(toks);
-    seen.forEach((t) => { df[t] = (df[t] || 0) + 1; });
-    return toks;
-  });
-  const vocab = Object.keys(df);
-  const idf = {};
+// Build IDF, TF-IDF doc vectors, and co-occurrence ("distributional") term vectors.
+function buildModel(items){
+  const docToks = items.map(contentTokens);
+  const df = {};
+  docToks.forEach((ts) => { new Set(ts).forEach((t) => { df[t] = (df[t]||0)+1; }); });
   const N = items.length;
-  vocab.forEach((t) => { idf[t] = Math.log((N + 1) / (df[t] + 1)) + 1; });
+  const idf = {};
+  Object.keys(df).forEach((t) => { idf[t] = Math.log((N+1)/(df[t]+1)) + 1; });
 
-  // TF-IDF vector for a token list, restricted to known vocab
-  const vectorize = (toks) => {
+  const tfidf = (toks) => {
     const tf = {};
-    toks.forEach((t) => { if (idf[t] !== undefined) tf[t] = (tf[t] || 0) + 1; });
-    const vec = {};
-    let norm = 0;
-    Object.keys(tf).forEach((t) => {
-      const w = (tf[t] / toks.length) * idf[t];
-      vec[t] = w; norm += w * w;
-    });
-    norm = Math.sqrt(norm) || 1;
-    Object.keys(vec).forEach((t) => { vec[t] /= norm; });
-    return vec;
+    toks.forEach((t) => { if (idf[t] !== undefined) tf[t] = (tf[t]||0)+1; });
+    const v = {};
+    for (const t in tf) v[t] = (tf[t]/toks.length) * idf[t];
+    return normalize(v);
   };
 
-  const docVectors = docTokens.map(vectorize);
-  return { idf, vectorize, docVectors };
-}
+  // term co-occurrence vectors: words sharing a listing become "neighbors"
+  const co = {};
+  docToks.forEach((ts) => {
+    const uniq = [...new Set(ts)];
+    uniq.forEach((a) => {
+      co[a] = co[a] || {};
+      uniq.forEach((b) => { if (a !== b) co[a][b] = (co[a][b]||0) + idf[b]; });
+      co[a][a] = (co[a][a]||0) + idf[a]*1.5; // anchor on the word itself
+    });
+  });
+  const termVec = {};
+  Object.keys(co).forEach((t) => { termVec[t] = normalize(co[t]); });
 
-function cosine(a, b) {
-  let dot = 0;
-  const keys = Object.keys(a).length < Object.keys(b).length ? a : b;
-  for (const k in keys) { if (a[k] && b[k]) dot += a[k] * b[k]; }
-  return dot; // vectors are already normalized
-}
+  // distributional + literal blend → a lightweight "embedding"
+  const embed = (toks) => {
+    const dist = {};
+    toks.forEach((t) => { if (termVec[t]) addInto(dist, termVec[t], idf[t] || 1); });
+    const v = {};
+    addInto(v, normalize(dist), 1.0);
+    addInto(v, tfidf(toks), 0.7);
+    return normalize(v);
+  };
 
+  const docVectors = docToks.map(embed);
+  return { df, idf, termVec, embed, docVectors, vocabSize: Object.keys(df).length };
+}
 const MODEL = buildModel(DATASET);
 
 /* ============================================================
    3. SEARCH ALGORITHMS
    ============================================================ */
-// Keyword: word matches in description + title matches x2, normalized by query words.
-function keywordSearch(query) {
+// Keyword: word matches in body + title matches x2, normalized; phrase bonus.
+function keywordSearch(query){
   const qWords = [...new Set(tokenize(query).filter((w) => !STOP.has(w)))];
   if (qWords.length === 0) return [];
   const phrase = query.trim().toLowerCase();
 
   return DATASET.map((item) => {
     const titleToks = new Set(tokenize(item.title));
-    const bodyToks = new Set(tokenize(`${item.description} ${item.metadata.join(' ')}`));
+    const bodyToks = new Set(tokenize(`${item.description} ${item.metadata.join(' ')} ${item.category}`));
     const matched = [];
     let titleHits = 0, bodyHits = 0;
-
     qWords.forEach((w) => {
-      const inTitle = titleToks.has(w);
-      const inBody = bodyToks.has(w);
-      if (inTitle) { titleHits++; matched.push({ word: w, where: 'title' }); }
-      else if (inBody) { bodyHits++; matched.push({ word: w, where: 'body' }); }
+      if (titleToks.has(w)) { titleHits++; matched.push({ word: w, where: 'title' }); }
+      else if (bodyToks.has(w)) { bodyHits++; matched.push({ word: w, where: 'body' }); }
     });
-
-    // weighted: title hits count double
-    let raw = (bodyHits + titleHits * 2) / (qWords.length * 2);
-    // exact phrase bonus
+    let raw = (bodyHits + titleHits*2) / (qWords.length*2);
     const phraseHit = phrase.length > 2 &&
       (item.title.toLowerCase().includes(phrase) || item.description.toLowerCase().includes(phrase));
     if (phraseHit) raw = Math.min(1, raw + 0.25);
-
-    return { item, score: Math.round(Math.min(1, raw) * 100), matched, phraseHit };
+    return { item, score: Math.round(Math.min(1, raw)*100), matched, phraseHit };
   })
   .filter((r) => r.score > 0)
   .sort((a, b) => b.score - a.score);
 }
 
-// Semantic: cosine similarity between query TF-IDF vector and doc vectors.
-function semanticSearch(query) {
-  const qToks = tokenize(query).filter((w) => !STOP.has(w));
+// Semantic: cosine similarity between blended distributional embeddings.
+function semanticSearch(query){
+  const qToks = tokenize(query).filter((w) => !STOP.has(w) && w.length > 1);
   if (qToks.length === 0) return [];
-  const qVec = MODEL.vectorize(qToks);
+  const qVec = MODEL.embed(qToks);
   if (Object.keys(qVec).length === 0) return [];
 
   return DATASET.map((item, i) => {
-    const sim = cosine(qVec, MODEL.docVectors[i]);
-    return { item, score: Math.round(sim * 100), sim };
+    const dVec = MODEL.docVectors[i];
+    const sim = cosine(qVec, dVec);
+    // contributions = which shared/related terms drove the score (for "why ranked")
+    const contrib = [];
+    for (const k in qVec) { if (dVec[k]) contrib.push({ term: k, w: qVec[k]*dVec[k] }); }
+    contrib.sort((a, b) => b.w - a.w);
+    const related = contrib.slice(0, 4).map((c) => ({ term: c.term, literal: qToks.includes(c.term) }));
+    return { item, score: Math.round(sim*100), sim, related };
   })
   .filter((r) => r.score > 0)
   .sort((a, b) => b.score - a.score);
 }
 
-const EXAMPLES = ['wooden desk', 'affordable furniture', 'something to play music on'];
+const EXAMPLES = {
+  keyword: ['wooden desk', 'leather chair', 'bluetooth speaker'],
+  semantic: ['affordable furniture', 'budget audio', 'comfortable living room seating'],
+  compare: ['affordable furniture', 'budget audio', 'something to play music on'],
+  fail: ['mirorless camra', 'TF-IDF', 'xptbqz'],
+};
 
 /* ============================================================
-   4. SHARED UI PIECES
+   4. SHARED UI
    ============================================================ */
 const CAT_COLORS = {
   furniture: 'bg-amber-100 text-amber-800',
@@ -254,44 +286,42 @@ const CAT_COLORS = {
   news: 'bg-rose-100 text-rose-800',
 };
 
-function highlight(text, words) {
+function highlight(text, words){
   if (!words || words.length === 0) return text;
   const re = new RegExp(`\\b(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
-  const parts = text.split(re);
-  return parts.map((p, i) =>
+  return text.split(re).map((p, i) =>
     words.some((w) => w.toLowerCase() === p.toLowerCase())
       ? <mark key={i} className="bg-green-200 text-green-900 rounded px-0.5 font-semibold">{p}</mark>
       : <span key={i}>{p}</span>
   );
 }
 
-function ScoreBar({ score, color = 'indigo', delay = 0 }) {
+function ScoreBar({ score, color = 'indigo', delay = 0 }){
   const palette = {
     indigo: 'from-indigo-500 to-violet-500',
     emerald: 'from-emerald-500 to-teal-500',
-    amber: 'from-amber-500 to-orange-500',
   }[color];
+  const glow = score >= 70 ? 'shadow-[0_0_10px_rgba(99,102,241,0.5)]' : '';
   return (
-    <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
+    <div className="w-full h-3.5 rounded-full bg-slate-200 overflow-hidden">
       <div
-        className={`h-full rounded-full bg-gradient-to-r ${palette} animate-barGrow`}
+        className={`h-full rounded-full bg-gradient-to-r ${palette} ${glow} animate-barGrow`}
         style={{ '--bar-w': `${score}%`, animationDelay: `${delay}ms` }}
       />
     </div>
   );
 }
 
-function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, delay, footer }) {
-  const accentColor = accent === 'emerald' ? 'emerald' : 'indigo';
+function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, delay, footer, related, uniqueLabel }){
+  const [why, setWhy] = useState(false);
   return (
-    <div
-      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 animate-scanIn hover:shadow-md transition-shadow"
-      style={{ animationDelay: `${delay}ms` }}
-    >
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 animate-scanIn hover:shadow-md transition-shadow"
+         style={{ animationDelay: `${delay}ms` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex-none w-7 h-7 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">{rank}</span>
           <h4 className="font-semibold text-slate-800 truncate">{highlight(item.title, highlightWords)}</h4>
+          {uniqueLabel && <span className={`flex-none text-[10px] font-bold px-1.5 py-0.5 rounded ${accent === 'emerald' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white`}>{uniqueLabel}</span>}
         </div>
         <div className="flex-none text-right">
           <div className={`text-lg font-extrabold ${accent === 'emerald' ? 'text-emerald-600' : 'text-indigo-600'}`}>{score}%</div>
@@ -299,18 +329,35 @@ function ResultCard({ rank, item, score, scoreLabel, highlightWords, accent, del
         </div>
       </div>
       <p className="text-sm text-slate-600 mt-2 leading-relaxed">{highlight(item.description, highlightWords)}</p>
-      <div className="mt-3">
-        <ScoreBar score={score} color={accentColor} delay={delay + 150} />
-      </div>
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3"><ScoreBar score={score} color={accent === 'emerald' ? 'emerald' : 'indigo'} delay={delay + 150} /></div>
+      <div className="mt-3 flex items-center justify-between gap-2">
         <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${CAT_COLORS[item.category]}`}>{item.category}</span>
-        {footer}
+        <div className="flex items-center gap-2">
+          {footer}
+          {related && related.length > 0 && (
+            <button onClick={() => setWhy(!why)} className="text-[11px] font-medium text-emerald-700 hover:text-emerald-900 underline decoration-dotted">
+              {why ? 'hide' : 'why ranked?'}
+            </button>
+          )}
+        </div>
       </div>
+      {why && related && (
+        <div className="mt-3 pt-3 border-t border-slate-100 animate-scanIn">
+          <p className="text-[11px] text-slate-400 mb-1.5">Top signals connecting this listing to your query:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {related.map((r, i) => (
+              <span key={i} className={`text-[11px] px-2 py-0.5 rounded-full ${r.literal ? 'bg-emerald-100 text-emerald-800 font-semibold' : 'bg-slate-100 text-slate-600'}`}>
+                {r.term}{!r.literal && <span className="text-slate-400"> · related</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SearchBox({ query, setQuery, onSearch, accent }) {
+function SearchBox({ query, setQuery, onSearch, accent, examples }){
   const ring = accent === 'emerald' ? 'focus:ring-emerald-400' : 'focus:ring-indigo-400';
   const btn = accent === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700';
   return (
@@ -320,26 +367,34 @@ function SearchBox({ query, setQuery, onSearch, accent }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-          placeholder="Search the marketplace…"
+          placeholder="Type a query, then press Enter…"
           className={`flex-1 px-4 py-3 rounded-lg border border-slate-300 text-slate-800 outline-none focus:ring-2 ${ring}`}
         />
-        <button onClick={onSearch} className={`px-6 py-3 rounded-lg text-white font-semibold ${btn} transition-colors`}>Search</button>
+        <button onClick={() => onSearch()} className={`px-6 py-3 rounded-lg text-white font-semibold ${btn} transition-colors`}>Search</button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-slate-400">Try:</span>
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex}
-            onClick={() => { setQuery(ex); onSearch(ex); }}
-            className="text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-          >{ex}</button>
+        {examples.map((ex) => (
+          <button key={ex} onClick={() => { setQuery(ex); onSearch(ex); }}
+            className="text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">{ex}</button>
         ))}
       </div>
     </div>
   );
 }
 
-function Scanning({ accent }) {
+function PredictPrompt({ accent }){
+  const c = accent === 'emerald' ? 'emerald' : 'indigo';
+  return (
+    <div className={`flex flex-col items-center justify-center py-14 gap-3 text-center animate-scanIn`}>
+      <div className={`text-4xl animate-floatY`}>🤔</div>
+      <p className="text-slate-600 font-medium">Before you search — <span className={`text-${c}-600`}>predict</span> the #1 result.</p>
+      <p className="text-sm text-slate-400 max-w-sm">Make a guess and say <em>why</em> out loud. Predicting first is what makes the reveal stick. Then hit a chip above or type your own.</p>
+    </div>
+  );
+}
+
+function Scanning({ accent }){
   const dot = accent === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500';
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -348,73 +403,104 @@ function Scanning({ accent }) {
           <span key={i} className={`w-3 h-3 rounded-full ${dot} animate-pulseScan`} style={{ animationDelay: `${i*120}ms` }} />
         ))}
       </div>
-      <p className="text-sm text-slate-400">Scanning {DATASET.length} items…</p>
+      <p className="text-sm text-slate-400">Scoring all {DATASET.length} listings…</p>
     </div>
   );
 }
 
-// Hook that runs a search with a brief scan animation
-function useSearch(searchFn) {
+function useSearch(searchFn){
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [scanning, setScanning] = useState(false);
+  const [ran, setRan] = useState('');
   const timer = useRef(null);
-
   const run = (override) => {
     const q = typeof override === 'string' ? override : query;
     if (!q.trim()) { setResults(null); return; }
-    setScanning(true);
-    setResults(null);
+    setScanning(true); setResults(null); setRan(q);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      setResults(searchFn(q).slice(0, 5));
-      setScanning(false);
-    }, 650);
+    timer.current = setTimeout(() => { setResults(searchFn(q).slice(0, 5)); setScanning(false); }, 600);
   };
   useEffect(() => () => clearTimeout(timer.current), []);
-  return { query, setQuery, results, scanning, run };
+  return { query, setQuery, results, scanning, ran, run };
 }
 
 /* ============================================================
    5. SLIDES
    ============================================================ */
-function SlideShell({ children }) {
-  return <div className="animate-slideIn h-full flex flex-col">{children}</div>;
-}
+function SlideShell({ children }){ return <div className="animate-slideIn h-full flex flex-col">{children}</div>; }
 
-function SlideTitle() {
+function SlideTitle(){
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
         <span className="text-xs font-semibold tracking-[0.3em] text-indigo-500 uppercase mb-6">Interactive Demo</span>
         <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight">
-          Semantic <span className="text-slate-400 font-light">vs</span> Keyword<br/>
-          <span className="bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">Search</span>
+          Semantic <span className="text-slate-400 font-light">vs</span> Keyword
+          <span className="block bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">Search</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-slate-600">
-          Two ways to find things in the same dataset. One matches <strong>words</strong>;
-          the other understands <strong>meaning</strong>. We'll run both live on a marketplace of {DATASET.length} listings and watch where they agree — and where they don't.
+          Two ways to find things in the same {DATASET.length}-listing marketplace. One matches <strong>words</strong>;
+          the other compares <strong>meaning</strong>. We'll run both live and watch where they agree — and where they don't.
         </p>
-        <div className="mt-10 flex gap-3 text-sm">
+        <div className="mt-8 max-w-xl w-full bg-white/70 border border-slate-200 rounded-xl p-4 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">By the end you'll be able to…</p>
+          <ul className="text-sm text-slate-600 space-y-1">
+            <li>① Explain how each engine scores a result</li>
+            <li>② Predict when keyword wins and when semantic wins</li>
+            <li>③ Know why production search blends both</li>
+          </ul>
+        </div>
+        <div className="mt-8 flex gap-3 text-sm">
           <span className="px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 font-medium">🔤 Keyword matching</span>
           <span className="px-4 py-2 rounded-full bg-emerald-50 text-emerald-700 font-medium">🧠 Semantic similarity</span>
         </div>
+        <p className="mt-8 text-sm text-slate-400">A search-relevance demo by <span className="font-semibold text-slate-600">{BRAND.founder}</span> · {BRAND.name}</p>
       </div>
     </SlideShell>
   );
 }
 
-function ExplainKeyword() {
+function WhyItMatters(){
+  const stats = [
+    { n: '43%', d: 'of site visitors go straight to the search box', src: 'Forrester' },
+    { n: '2–3×', d: 'higher conversion from visitors who search vs. browse', src: 'industry avg.' },
+    { n: '12%', d: 'of searches return zero results when matching is purely literal', src: 'common audit finding' },
+  ];
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
+        <span className="text-xs font-semibold tracking-[0.25em] text-indigo-500 uppercase">Why this matters</span>
+        <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mt-2 mb-3">Search <em>is</em> the storefront</h2>
+        <p className="text-slate-600 max-w-2xl mb-8">When a shopper types what they mean and gets nothing back, that's lost revenue — not a technical footnote. Relevance is a growth lever.</p>
+        <div className="grid md:grid-cols-3 gap-4">
+          {stats.map((s) => (
+            <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-violet-500 bg-clip-text text-transparent">{s.n}</div>
+              <p className="text-sm text-slate-600 mt-2">{s.d}</p>
+              <p className="text-[11px] text-slate-400 mt-2">{s.src}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          Figures are illustrative industry ranges — the point stands: the gap between “matched a word” and “understood the need” is measured in conversions.
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
+function ExplainKeyword(){
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
         <h2 className="text-3xl font-bold text-slate-900 mb-2">How Keyword Search Works</h2>
-        <p className="text-slate-600 mb-8">It looks for the <strong>literal words</strong> you typed. No understanding of meaning — just matching.</p>
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <p className="text-slate-600 mb-6">It looks for the <strong>literal words</strong> you typed — no notion of meaning, just matching and counting.</p>
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
           {[
-            { n: '1', t: 'Split the query', d: 'Break "wooden desk" into the tokens wooden and desk.' },
-            { n: '2', t: 'Match & weight', d: 'Count matches in each listing. A match in the title counts 2× a match in the body.' },
-            { n: '3', t: 'Score 0–100', d: 'Normalize by query length, add a bonus for exact phrase matches.' },
+            { n:'1', t:'Split & clean', d:'Break "wooden desk" into wooden + desk, and drop filler words like the, for, with (called stop words — they match everything, so they add noise).' },
+            { n:'2', t:'Match & weight', d:'Count matches per listing. A hit in the title counts 2× a hit in the body — titles are stronger relevance signals.' },
+            { n:'3', t:'Score 0–100', d:'Normalize by query length; add a bonus when the exact phrase appears.' },
           ].map((s) => (
             <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white font-bold grid place-items-center mb-3">{s.n}</div>
@@ -424,41 +510,39 @@ function ExplainKeyword() {
           ))}
         </div>
         <div className="bg-slate-900 rounded-xl p-5 font-mono text-sm text-slate-200">
-          <span className="text-indigo-300">score</span> = ( bodyMatches + <span className="text-amber-300">titleMatches × 2</span> ) / (queryWords × 2) × 100
-          <div className="text-slate-400 mt-2 text-xs">+ 25-point bonus when the exact phrase appears</div>
+          <span className="text-indigo-300">score</span> = ( bodyMatches + <span className="text-amber-300">titleMatches × 2</span> ) / (queryWords × 2) × 100 &nbsp;<span className="text-slate-500">(+25 phrase bonus)</span>
+          <div className="text-slate-400 mt-2 text-xs">Worked example — query <span className="text-slate-200">"wooden desk"</span> (2 words) on <span className="text-slate-200">"Vintage wooden writing desk"</span>: both words hit the title → (0 + 2×2)/(2×2) = <span className="text-emerald-300">100%</span>.</div>
         </div>
-        <p className="mt-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          ⚠️ The catch: search "affordable furniture" and a "<em>budget-friendly fabric sofa</em>" scores <strong>zero</strong> — it never uses those exact words.
+        <p className="mt-5 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          ⚠️ The catch: it can't tell <em>category</em> from <em>coincidence</em>. Search "budget audio" and a "<em>budget-friendly fabric sofa</em>" scores as high as real earbuds — it only saw the word "budget."
         </p>
+        <p className="mt-3 text-xs text-slate-400">↳ Real engines (Elasticsearch, Lucene) use a refined version of this called <strong>BM25</strong>, which dampens repeated words and adjusts for document length. Same family — just tuned.</p>
       </div>
     </SlideShell>
   );
 }
 
-function DemoKeyword() {
+function DemoKeyword(){
   const s = useSearch(keywordSearch);
-  useEffect(() => { s.setQuery(EXAMPLES[0]); s.run(EXAMPLES[0]); }, []);
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
         <h2 className="text-3xl font-bold text-slate-900 mb-1">Keyword Search — Live</h2>
-        <p className="text-slate-500 mb-5 text-sm">Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. Notice it only finds listings that literally contain your words.</p>
-        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="indigo" />
+        <p className="text-slate-500 mb-5 text-sm">Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. It only finds listings that <em>literally contain</em> your words.</p>
+        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="indigo" examples={EXAMPLES.keyword} />
         <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
+          {!s.scanning && s.results === null && <PredictPrompt accent="indigo" />}
           {s.scanning && <Scanning accent="indigo" />}
           {!s.scanning && s.results && s.results.length === 0 && (
-            <div className="text-center py-16 text-slate-400">No listings contain those exact words. Try semantic search →</div>
+            <div className="text-center py-16 text-slate-400">No listings contain those exact words. Watch what semantic does with the same idea →</div>
           )}
           {!s.scanning && s.results && s.results.map((r, i) => (
-            <ResultCard
-              key={r.item.id} rank={i+1} item={r.item} score={r.score}
-              scoreLabel="keyword" accent="indigo" delay={i*80}
+            <ResultCard key={r.item.id} rank={i+1} item={r.item} score={r.score} scoreLabel="keyword" accent="indigo" delay={i*80}
               highlightWords={r.matched.map((m) => m.word)}
               footer={<span className="text-xs text-slate-400">
-                {r.matched.filter((m) => m.where === 'title').length > 0 && <span className="text-indigo-600 font-medium">title match </span>}
-                {r.matched.length} word{r.matched.length !== 1 ? 's' : ''} matched{r.phraseHit && ' · phrase bonus'}
-              </span>}
-            />
+                {r.matched.filter((m) => m.where === 'title').length > 0 && <span className="text-indigo-600 font-medium">title match · </span>}
+                {r.matched.length} word{r.matched.length !== 1 ? 's' : ''}{r.phraseHit && ' · phrase bonus'}
+              </span>} />
           ))}
         </div>
       </div>
@@ -466,58 +550,98 @@ function DemoKeyword() {
   );
 }
 
-function ExplainSemantic() {
+function CosineVisual(){
+  const [angle, setAngle] = useState(28);
+  const rad = angle * Math.PI / 180;
+  const cx = 150, cy = 170, len = 120;
+  // query vector fixed pointing up-right; doc vector rotates by `angle` away from it
+  const baseAngle = -60 * Math.PI / 180;
+  const qx = cx + len*Math.cos(baseAngle), qy = cy + len*Math.sin(baseAngle);
+  const dAngle = baseAngle + rad;
+  const dx = cx + len*Math.cos(dAngle), dy = cy + len*Math.sin(dAngle);
+  const sim = Math.round(Math.cos(rad)*100);
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className="flex flex-col md:flex-row items-center gap-5">
+        <svg width="300" height="200" className="flex-none">
+          <line x1={cx} y1={cy} x2={qx} y2={qy} stroke="#10b981" strokeWidth="3" markerEnd="url(#ah-e)" />
+          <line x1={cx} y1={cy} x2={dx} y2={dy} stroke="#6366f1" strokeWidth="3" markerEnd="url(#ah-i)" />
+          <path d={`M ${cx+38*Math.cos(baseAngle)} ${cy+38*Math.sin(baseAngle)} A 38 38 0 0 1 ${cx+38*Math.cos(dAngle)} ${cy+38*Math.sin(dAngle)}`} fill="none" stroke="#94a3b8" strokeWidth="2" />
+          <text x={cx+58*Math.cos(baseAngle+rad/2)} y={cy+58*Math.sin(baseAngle+rad/2)} fontSize="13" fill="#64748b" fontWeight="700" textAnchor="middle">θ</text>
+          <text x={qx} y={qy-8} fontSize="12" fill="#059669" fontWeight="700" textAnchor="middle">query</text>
+          <text x={dx} y={dy-8} fontSize="12" fill="#4f46e5" fontWeight="700" textAnchor="middle">listing</text>
+          <circle cx={cx} cy={cy} r="4" fill="#0f172a" />
+          <defs>
+            <marker id="ah-e" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#10b981"/></marker>
+            <marker id="ah-i" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#6366f1"/></marker>
+          </defs>
+        </svg>
+        <div className="flex-1 w-full">
+          <p className="text-sm text-slate-600 mb-3">Each listing and your query become an arrow in “meaning space.” Similarity is the <strong>angle</strong> between them — a smaller angle means closer meaning. Drag to feel it:</p>
+          <input type="range" min="0" max="90" value={angle} onChange={(e) => setAngle(+e.target.value)} className="w-full accent-emerald-600" />
+          <div className="flex items-center justify-between mt-2 text-sm">
+            <span className="text-slate-400">θ = {angle}°</span>
+            <span className="font-bold text-emerald-600">cos(θ) = {sim}% similarity</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">0° = identical meaning (100%) · 90° = unrelated (0%).</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExplainSemantic(){
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">How Semantic Search Works</h2>
-        <p className="text-slate-600 mb-8">It compares <strong>meaning</strong>, not spelling. Words that appear in similar contexts end up close together.</p>
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          {[
-            { n: '1', t: 'Embed everything', d: 'Each listing becomes a vector from its word frequencies, weighted by how rare each word is (TF-IDF).' },
-            { n: '2', t: 'Embed the query', d: 'Your query is turned into a vector the exact same way.' },
-            { n: '3', t: 'Cosine similarity', d: 'Measure the angle between query and listing vectors. Closer angle → higher score.' },
-          ].map((s) => (
-            <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white font-bold grid place-items-center mb-3">{s.n}</div>
-              <h3 className="font-semibold text-slate-800">{s.t}</h3>
-              <p className="text-sm text-slate-500 mt-1">{s.d}</p>
-            </div>
-          ))}
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="text-3xl font-bold text-slate-900">How Semantic Search Works</h2>
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">TF-IDF model · not neural embeddings</span>
         </div>
-        <div className="bg-slate-900 rounded-xl p-5 font-mono text-sm text-slate-200">
-          <span className="text-emerald-300">similarity</span> = cos(θ) = ( <span className="text-amber-300">A · B</span> ) / ( ‖A‖ ‖B‖ ) &nbsp;→&nbsp; 0…1 → 0–100%
-          <div className="text-slate-400 mt-2 text-xs">Real systems use neural embeddings; here we use a lightweight, fully client-side TF-IDF model — no API calls.</div>
+        <p className="text-slate-600 mb-5">It compares <strong>meaning</strong> over spelling. Words that keep similar company in the catalog become “neighbors” — so <em>cheap</em>, <em>budget</em>, and <em>affordable</em> end up close together, even though they're different words.</p>
+        <div className="grid md:grid-cols-2 gap-5 items-start">
+          <div className="space-y-3">
+            {[
+              { n:'1', t:'Learn word neighbors', d:'From the listings themselves: words that co-occur (sofa + couch + living room) get similar vectors. The model "learns" affordable ≈ budget ≈ cheap from how they\'re used.' },
+              { n:'2', t:'Weight by rarity (IDF)', d:'Rare words like mirrorless are strong signals; common ones like home are weak. Like a detective: an unusual clue matters more than one everyone shares.' },
+              { n:'3', t:'Compare by angle', d:'Turn query and listing into vectors, then measure the cosine of the angle between them →' },
+            ].map((s) => (
+              <div key={s.n} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex gap-3">
+                  <div className="flex-none w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold grid place-items-center">{s.n}</div>
+                  <div><h3 className="font-semibold text-slate-800">{s.t}</h3><p className="text-sm text-slate-500 mt-0.5">{s.d}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <CosineVisual />
         </div>
-        <p className="mt-6 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-          ✅ The payoff: "affordable furniture" now surfaces <em>budget sofas</em>, <em>cheap bookshelves</em>, and <em>inexpensive bed frames</em> — even without the word "affordable."
+        <p className="mt-5 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          ✅ Honest framing: this is the <em>same core idea</em> as the neural embeddings behind ChatGPT-era search (word2vec, BERT) — just a lightweight version computed entirely in your browser. Real systems learn richer meaning from billions of sentences.
         </p>
       </div>
     </SlideShell>
   );
 }
 
-function DemoSemantic() {
+function DemoSemantic(){
   const s = useSearch(semanticSearch);
-  useEffect(() => { s.setQuery(EXAMPLES[1]); s.run(EXAMPLES[1]); }, []);
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
         <h2 className="text-3xl font-bold text-slate-900 mb-1">Semantic Search — Live</h2>
-        <p className="text-slate-500 mb-5 text-sm">Scores are cosine similarity. Try "affordable furniture" — it understands intent, not just words.</p>
-        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="emerald" />
+        <p className="text-slate-500 mb-5 text-sm">Scores are cosine similarity. Hit <strong>"why ranked?"</strong> on any card to see the related words that connected it — including ones you never typed.</p>
+        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="emerald" examples={EXAMPLES.semantic} />
         <div className="flex-1 overflow-y-auto mt-5 pr-1 space-y-3">
+          {!s.scanning && s.results === null && <PredictPrompt accent="emerald" />}
           {s.scanning && <Scanning accent="emerald" />}
           {!s.scanning && s.results && s.results.length === 0 && (
-            <div className="text-center py-16 text-slate-400">No semantic matches found.</div>
+            <div className="text-center py-16 text-slate-400">No semantic matches — the query shares no known words with the catalog.</div>
           )}
           {!s.scanning && s.results && s.results.map((r, i) => (
-            <ResultCard
-              key={r.item.id} rank={i+1} item={r.item} score={r.score}
-              scoreLabel="similarity" accent="emerald" delay={i*80}
-              highlightWords={[]}
-              footer={<span className="text-xs text-slate-400">cosine similarity {r.sim.toFixed(3)}</span>}
-            />
+            <ResultCard key={r.item.id} rank={i+1} item={r.item} score={r.score} scoreLabel="similarity" accent="emerald" delay={i*80}
+              highlightWords={[]} related={r.related}
+              footer={<span className="text-xs text-slate-400">cosine {r.sim.toFixed(3)}</span>} />
           ))}
         </div>
       </div>
@@ -525,26 +649,24 @@ function DemoSemantic() {
   );
 }
 
-function Comparison() {
-  const [query, setQuery] = useState(EXAMPLES[1]);
-  const [active, setActive] = useState(EXAMPLES[1]);
-  const kw = useMemo(() => keywordSearch(active).slice(0, 5), [active]);
-  const sem = useMemo(() => semanticSearch(active).slice(0, 5), [active]);
-
-  const chartData = useMemo(() => {
-    // union of top items, show both scores
-    const map = new Map();
-    kw.forEach((r) => map.set(r.item.id, { name: r.item.title.slice(0, 22), keyword: r.score, semantic: 0 }));
-    sem.forEach((r) => {
-      const e = map.get(r.item.id) || { name: r.item.title.slice(0, 22), keyword: 0, semantic: 0 };
-      e.semantic = r.score; map.set(r.item.id, e);
-    });
-    return [...map.values()].sort((a, b) => (b.keyword + b.semantic) - (a.keyword + a.semantic)).slice(0, 6);
-  }, [active]);
-
+function Comparison(){
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState('');
+  const kw = useMemo(() => active ? keywordSearch(active).slice(0, 5) : [], [active]);
+  const sem = useMemo(() => active ? semanticSearch(active).slice(0, 5) : [], [active]);
   const kwIds = kw.map((r) => r.item.id);
   const semIds = sem.map((r) => r.item.id);
   const onlySemantic = sem.filter((r) => !kwIds.includes(r.item.id)).length;
+
+  const chartData = useMemo(() => {
+    const map = new Map();
+    kw.forEach((r) => map.set(r.item.id, { name: r.item.title.slice(0, 20), keyword: r.score, semantic: 0 }));
+    sem.forEach((r) => {
+      const e = map.get(r.item.id) || { name: r.item.title.slice(0, 20), keyword: 0, semantic: 0 };
+      e.semantic = r.score; map.set(r.item.id, e);
+    });
+    return [...map.values()].sort((a, b) => (b.keyword+b.semantic)-(a.keyword+a.semantic)).slice(0, 6);
+  }, [active]);
 
   const run = (override) => setActive(typeof override === 'string' ? override : query);
 
@@ -552,110 +674,198 @@ function Comparison() {
     <SlideShell>
       <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 overflow-hidden">
         <h2 className="text-3xl font-bold text-slate-900 mb-1">Side-by-Side</h2>
-        <p className="text-slate-500 text-sm mb-4">One query, both engines. Watch the rankings diverge.</p>
-        <SearchBox query={query} setQuery={setQuery} onSearch={run} accent="indigo" />
+        <p className="text-slate-500 text-sm mb-4">One query, both engines. <span className="text-slate-400">Tip: try "affordable furniture" — watch keyword scatter across categories while semantic stays on-concept.</span></p>
+        <SearchBox query={query} setQuery={setQuery} onSearch={run} accent="indigo" examples={EXAMPLES.compare} />
 
         <div className="flex-1 overflow-y-auto mt-4 pr-1">
+          {!active && <div className="text-center py-16 text-slate-400">Pick a query above to compare both engines side-by-side.</div>}
+          {active && (
+          <>
           <div className="grid md:grid-cols-2 gap-4">
-            {/* Keyword column */}
             <div>
               <div className="flex items-center gap-2 mb-2 text-indigo-700 font-semibold text-sm"><span>🔤</span> Keyword — top 5</div>
               <div className="space-y-2">
                 {kw.length === 0 && <div className="text-sm text-slate-400 bg-white border rounded-lg p-4">No literal matches.</div>}
-                {kw.map((r, i) => (
-                  <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="indigo" unique={!semIds.includes(r.item.id)} />
-                ))}
+                {kw.map((r, i) => <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="indigo" unique={!semIds.includes(r.item.id)} />)}
               </div>
             </div>
-            {/* Semantic column */}
             <div>
               <div className="flex items-center gap-2 mb-2 text-emerald-700 font-semibold text-sm"><span>🧠</span> Semantic — top 5</div>
               <div className="space-y-2">
-                {sem.map((r, i) => (
-                  <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="emerald" unique={!kwIds.includes(r.item.id)} />
-                ))}
+                {sem.map((r, i) => <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent="emerald" unique={!kwIds.includes(r.item.id)} />)}
               </div>
             </div>
           </div>
 
-          {/* Chart */}
           <div className="mt-5 bg-white rounded-xl border border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-700 mb-3">Score comparison</h3>
-            <div style={{ width: '100%', height: 240 }}>
+            <div style={{ width: '100%', height: 300 }}>
               <ResponsiveContainer>
-                <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={50} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <Tooltip />
+                <BarChart data={chartData} margin={{ top: 18, right: 10, left: -8, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8edf3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} angle={-18} textAnchor="end" height={70} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} />
+                  <Tooltip cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="keyword" name="Keyword" fill="#6366f1" radius={[3,3,0,0]} />
-                  <Bar dataKey="semantic" name="Semantic" fill="#10b981" radius={[3,3,0,0]} />
+                  <Bar dataKey="keyword" name="Keyword" fill="#6366f1" radius={[4,4,0,0]} animationDuration={800}>
+                    <LabelList dataKey="keyword" position="top" fontSize={10} fill="#6366f1" formatter={(v) => v ? v : ''} />
+                  </Bar>
+                  <Bar dataKey="semantic" name="Semantic" fill="#10b981" radius={[4,4,0,0]} animationDuration={800}>
+                    <LabelList dataKey="semantic" position="top" fontSize={10} fill="#10b981" formatter={(v) => v ? v : ''} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="mt-4 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
-            <strong>Why they differ:</strong> Keyword search ranks by literal word overlap, so it rewards titles that repeat your exact terms.
-            Semantic search ranks by meaning — for this query it surfaced <strong>{onlySemantic}</strong> listing{onlySemantic !== 1 ? 's' : ''} that keyword search missed entirely (highlighted with a dot).
+          <div className="mt-4 grid md:grid-cols-3 gap-3">
+            <div className="md:col-span-2 bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900">
+              <strong>Why they differ:</strong> Keyword ranks by literal word overlap, so it rewards any listing repeating your terms — even from the wrong category. Semantic ranks by meaning, so for this query it surfaced <strong>{onlySemantic}</strong> listing{onlySemantic !== 1 ? 's' : ''} keyword ranked differently or missed (tagged <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white">SEMANTIC ONLY</span>).
+            </div>
+            <div className="bg-slate-900 rounded-xl p-4 text-sm text-slate-200">
+              <p className="text-[11px] uppercase tracking-wide text-indigo-300 font-semibold mb-1">Field note</p>
+              <p>Clients typically see fewer “no results found” dead-ends and longer sessions after adding a semantic layer.</p>
+            </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </SlideShell>
   );
 }
 
-function CompactRow({ rank, item, score, accent, unique }) {
+function CompactRow({ rank, item, score, accent, unique }){
   const color = accent === 'emerald' ? 'text-emerald-600' : 'text-indigo-600';
-  const barColor = accent === 'emerald' ? 'emerald' : 'indigo';
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-3 animate-scanIn" style={{ animationDelay: `${rank*60}ms` }}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex-none w-5 h-5 rounded bg-slate-800 text-white text-xs font-bold grid place-items-center">{rank}</span>
-          {unique && <span className={`flex-none w-2 h-2 rounded-full ${accent === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500'}`} title="Unique to this engine" />}
           <span className="text-sm font-medium text-slate-700 truncate">{item.title}</span>
+          {unique && <span className={`flex-none text-[9px] font-bold px-1 py-0.5 rounded ${accent === 'emerald' ? 'bg-emerald-600' : 'bg-indigo-600'} text-white`}>{accent === 'emerald' ? 'SEM' : 'KEY'} ONLY</span>}
         </div>
         <span className={`flex-none text-sm font-bold ${color}`}>{score}%</span>
       </div>
-      <div className="mt-2"><ScoreBar score={score} color={barColor} delay={rank*60} /></div>
+      <div className="mt-2"><ScoreBar score={score} color={accent === 'emerald' ? 'emerald' : 'indigo'} delay={rank*60} /></div>
     </div>
   );
 }
 
-function Takeaways() {
+function FailureCase(){
+  const s = useSearch((q) => {
+    // return both engines for the same query
+    return [{ both: true, kw: keywordSearch(q).slice(0,3), sem: semanticSearch(q).slice(0,3) }];
+  });
   return (
     <SlideShell>
-      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto px-6">
-        <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center">When to use each</h2>
+      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">When semantic <em>isn't</em> magic</h2>
+        <p className="text-slate-500 mb-5 text-sm">Honesty check. Our model still works from the words in the catalog — so it can't rescue a typo or a term that was never written down.</p>
+        <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent="indigo" examples={EXAMPLES.fail} />
+        <div className="flex-1 overflow-y-auto mt-5 pr-1">
+          {!s.scanning && s.results === null && (
+            <div className="text-center py-14 text-slate-400">
+              Try a misspelling like <span className="font-mono bg-slate-100 px-1 rounded">mirorless camra</span> — both engines come up empty.
+            </div>
+          )}
+          {s.scanning && <Scanning accent="indigo" />}
+          {!s.scanning && s.results && s.results[0] && (() => {
+            const { kw, sem } = s.results[0];
+            const bothEmpty = kw.length === 0 && sem.length === 0;
+            return (
+              <div className="animate-scanIn">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <ResultCol title="🔤 Keyword" rows={kw} accent="indigo" />
+                  <ResultCol title="🧠 Semantic" rows={sem} accent="emerald" />
+                </div>
+                <div className={`mt-5 rounded-xl p-4 text-sm border ${bothEmpty ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+                  {bothEmpty
+                    ? <><strong>Both returned nothing.</strong> Neither engine “knows” a misspelled or absent word — they only relate words that actually appear in the catalog. Real neural embeddings, trained on billions of sentences, handle typos and rare synonyms far better. The fix in practice: spell-correction + a true embedding model.</>
+                    : <><strong>Notice the difference even here.</strong> Semantic still leans on co-occurring words, so it degrades more gracefully — but it's not magic. Garbage in, sparse out.</>}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function ResultCol({ title, rows, accent }){
+  const color = accent === 'emerald' ? 'text-emerald-700' : 'text-indigo-700';
+  return (
+    <div>
+      <div className={`font-semibold text-sm mb-2 ${color}`}>{title}</div>
+      {rows.length === 0
+        ? <div className="text-sm text-slate-400 bg-white border border-dashed border-slate-300 rounded-lg p-6 text-center">No results 🤷</div>
+        : <div className="space-y-2">{rows.map((r, i) => <CompactRow key={r.item.id} rank={i+1} item={r.item} score={r.score} accent={accent} />)}</div>}
+    </div>
+  );
+}
+
+function Takeaways(){
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-5xl mx-auto px-6">
+        <h2 className="text-3xl font-bold text-slate-900 mb-6 text-center">When to use each</h2>
         <div className="grid md:grid-cols-2 gap-5">
           <div className="bg-white rounded-2xl border-2 border-indigo-200 p-6">
-            <div className="text-2xl mb-2">🔤</div>
-            <h3 className="text-xl font-bold text-indigo-700">Keyword Search</h3>
+            <div className="text-2xl mb-1">🔤</div>
+            <h3 className="text-xl font-bold text-indigo-700">Reach for Keyword when…</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              <li>✓ Exact product codes, SKUs, names</li>
-              <li>✓ Fast, transparent, easy to debug</li>
-              <li>✓ No model or training needed</li>
-              <li>✗ Misses synonyms &amp; intent</li>
-              <li>✗ Brittle with natural-language queries</li>
+              <li>✓ Users search exact <strong>SKUs, model numbers, names</strong> ("iPhone 15 Pro 256GB")</li>
+              <li>✓ Precision &amp; predictability matter (legal, code, docs)</li>
+              <li>✓ You need it fast, cheap, and explainable</li>
+              <li>✗ Falls apart on synonyms &amp; natural language</li>
             </ul>
           </div>
           <div className="bg-white rounded-2xl border-2 border-emerald-200 p-6">
-            <div className="text-2xl mb-2">🧠</div>
-            <h3 className="text-xl font-bold text-emerald-700">Semantic Search</h3>
+            <div className="text-2xl mb-1">🧠</div>
+            <h3 className="text-xl font-bold text-emerald-700">Reach for Semantic when…</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              <li>✓ Understands meaning &amp; synonyms</li>
-              <li>✓ Great for conversational queries</li>
-              <li>✓ Surfaces relevant-but-differently-worded items</li>
-              <li>✗ Heavier to compute &amp; store</li>
-              <li>✗ Harder to explain a ranking</li>
+              <li>✓ Users type <strong>intent</strong>, not keywords ("something cozy for a small apartment")</li>
+              <li>✓ Your catalog is full of synonyms &amp; varied wording</li>
+              <li>✓ You want to kill “no results found” dead-ends</li>
+              <li>✗ Heavier to compute; rankings harder to explain</li>
             </ul>
           </div>
         </div>
-        <div className="mt-6 text-center text-slate-600">
-          <p className="text-lg font-medium">💡 The best production systems use <span className="text-violet-600 font-bold">both</span> — keyword for precision, semantic for recall — and blend the scores.</p>
+        <div className="mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-6 text-white text-center">
+          <p className="text-lg font-bold">💡 The real answer is <span className="underline decoration-white/40">both</span> — hybrid search</p>
+          <p className="text-sm text-indigo-100 mt-2 max-w-2xl mx-auto">Production systems cast a wide net with semantic <em>recall</em>, then re-rank with keyword <em>precision</em> (and signals like popularity). Keyword for the exact, semantic for the intent — fused into one ranking.</p>
         </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function CTA(){
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center text-white text-2xl font-bold mb-6 animate-floatY">◆</div>
+        <span className="text-xs font-semibold tracking-[0.3em] text-indigo-500 uppercase">{BRAND.name}</span>
+        <h2 className="text-4xl font-extrabold text-slate-900 mt-3 max-w-2xl">Search your customers can actually talk to</h2>
+        <p className="mt-4 max-w-xl text-slate-600">This whole demo runs client-side in a single file — no servers, no API keys. {BRAND.name} builds search and AI experiences like this into real products, from prototype to production.</p>
+        <div className="mt-8 grid sm:grid-cols-3 gap-3 max-w-2xl w-full">
+          {[
+            { t:'Search audits', d:'Find the queries quietly losing you sales' },
+            { t:'Hybrid search', d:'Keyword + semantic, tuned to your catalog' },
+            { t:'Interactive demos', d:'Explainers like this for your own product' },
+          ].map((c) => (
+            <div key={c.t} className="bg-white rounded-xl border border-slate-200 p-4 text-left">
+              <h3 className="font-semibold text-slate-800 text-sm">{c.t}</h3>
+              <p className="text-xs text-slate-500 mt-1">{c.d}</p>
+            </div>
+          ))}
+        </div>
+        <a href={`mailto:${BRAND.email}?subject=Let's%20talk%20search`}
+           className="mt-8 px-7 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors shadow-lg shadow-indigo-600/20">
+          Let's talk search →
+        </a>
+        <p className="mt-4 text-sm text-slate-400">{BRAND.founder} · <a className="text-indigo-600 hover:underline" href={`mailto:${BRAND.email}`}>{BRAND.email}</a></p>
       </div>
     </SlideShell>
   );
@@ -663,25 +873,28 @@ function Takeaways() {
 
 const SLIDES = [
   { title: 'Title & Intro', render: () => <SlideTitle /> },
+  { title: 'Why It Matters', render: () => <WhyItMatters /> },
   { title: 'How Keyword Search Works', render: () => <ExplainKeyword /> },
-  { title: 'Keyword Search — Live Demo', render: () => <DemoKeyword /> },
+  { title: 'Keyword Search — Live', render: () => <DemoKeyword /> },
   { title: 'How Semantic Search Works', render: () => <ExplainSemantic /> },
-  { title: 'Semantic Search — Live Demo', render: () => <DemoSemantic /> },
+  { title: 'Semantic Search — Live', render: () => <DemoSemantic /> },
   { title: 'Side-by-Side Comparison', render: () => <Comparison /> },
+  { title: "When Semantic Isn't Magic", render: () => <FailureCase /> },
   { title: 'Key Takeaways', render: () => <Takeaways /> },
+  { title: 'Work With Us', render: () => <CTA /> },
 ];
 
 /* ============================================================
    6. APP SHELL + NAVIGATION
    ============================================================ */
-function App() {
+function App(){
   const [i, setI] = useState(0);
-  const next = () => setI((v) => Math.min(SLIDES.length - 1, v + 1));
-  const prev = () => setI((v) => Math.max(0, v - 1));
+  const next = () => setI((v) => Math.min(SLIDES.length-1, v+1));
+  const prev = () => setI((v) => Math.max(0, v-1));
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.target.tagName === 'INPUT') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'ArrowRight') next();
       if (e.key === 'ArrowLeft') prev();
     };
@@ -691,39 +904,29 @@ function App() {
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* progress dots */}
-      <div className="flex-none flex items-center justify-center gap-2 pt-4">
+      <div className="flex-none flex items-center justify-center gap-1.5 pt-4">
         {SLIDES.map((s, idx) => (
-          <button
-            key={idx}
-            onClick={() => setI(idx)}
-            title={s.title}
-            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`}
-          />
+          <button key={idx} onClick={() => setI(idx)} title={s.title}
+            aria-label={`Go to slide ${idx+1}: ${s.title}`}
+            className={`h-1.5 rounded-full transition-all ${idx === i ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`} />
         ))}
       </div>
 
-      {/* slide body */}
-      <main className="flex-1 overflow-hidden py-4">
-        {SLIDES[i].render()}
-      </main>
+      <main className="flex-1 overflow-hidden py-4">{SLIDES[i].render()}</main>
 
-      {/* nav bar */}
-      <footer className="flex-none border-t border-slate-200 bg-white/70 backdrop-blur px-6 py-3 flex items-center justify-between">
-        <button
-          onClick={prev} disabled={i === 0}
-          className="px-5 py-2 rounded-lg font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >← Previous</button>
-
-        <div className="text-center">
-          <div className="text-sm font-semibold text-slate-700">{SLIDES[i].title}</div>
-          <div className="text-xs text-slate-400">Slide {i + 1} of {SLIDES.length} · <span className="text-slate-500">Obsidian Software</span></div>
+      <footer className="flex-none border-t border-slate-200 bg-white/70 backdrop-blur px-6 py-3 flex items-center justify-between gap-4">
+        <button onClick={prev} disabled={i === 0}
+          className="px-5 py-2 rounded-lg font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">← Previous</button>
+        <div className="text-center min-w-0">
+          <div className="text-sm font-semibold text-slate-700 truncate">{SLIDES[i].title}</div>
+          <div className="text-xs text-slate-400 flex items-center justify-center gap-1.5">
+            Slide {i+1} of {SLIDES.length}
+            <span className="text-slate-300">·</span>
+            <span className="inline-flex items-center gap-1 text-slate-500 font-medium"><span className="text-indigo-500">◆</span>{BRAND.name}</span>
+          </div>
         </div>
-
-        <button
-          onClick={next} disabled={i === SLIDES.length - 1}
-          className="px-5 py-2 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >{i === SLIDES.length - 1 ? 'Done' : 'Next →'}</button>
+        <button onClick={next} disabled={i === SLIDES.length-1}
+          className="px-5 py-2 rounded-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">{i === SLIDES.length-1 ? 'Done' : 'Next →'}</button>
       </footer>
     </div>
   );
