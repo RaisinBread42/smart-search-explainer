@@ -562,49 +562,63 @@ function ExplainKeyword(){
   );
 }
 
-function PredictionGate({ accent, guess, setGuess, onCommit }){
+function PredictionGate({ accent, prediction, pickId, setPickId, onCommit }){
   const c = accent === 'emerald' ? 'emerald' : 'indigo';
-  const commit = () => { if (guess.trim()) onCommit(); };
+  const commit = () => { if (pickId != null) onCommit(); };
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 animate-scanIn">
+    <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 animate-scanIn overflow-y-auto py-2">
       <div className="text-4xl animate-floatY">🤔</div>
       <h3 className="text-xl font-semibold text-slate-800">First, make a prediction</h3>
-      <p className="text-sm text-slate-500 max-w-md">Committing a guess <em>before</em> the reveal is what makes it stick. What kind of listing do you think will rank <strong>#1</strong> — and why? Jot it down, then unlock the demo.</p>
-      <div className="flex gap-2 w-full max-w-md mt-2">
-        <input
-          value={guess}
-          onChange={(e) => setGuess(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commit()}
-          placeholder="e.g. the cheapest sofa…"
-          className={`flex-1 px-4 py-3 rounded-lg border border-slate-300 text-slate-800 outline-none focus:ring-2 focus:ring-${c}-400`}
-        />
-        <button onClick={commit} disabled={!guess.trim()}
-          className={`px-5 py-3 rounded-lg text-white font-semibold bg-${c}-600 hover:bg-${c}-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}>
-          Lock it in →
-        </button>
+      <p className="text-sm text-slate-500 max-w-lg">
+        We're about to search this {DATASET.length}-listing catalog for{' '}
+        <span className={`font-semibold px-2 py-0.5 rounded bg-${c}-50 text-${c}-700`}>“{prediction.query}”</span>{' '}
+        using <strong>{prediction.engine}</strong>. Which of these do you think it ranks <strong>#1</strong>? Commit a guess <em>before</em> the reveal — that's what makes the lesson stick.
+      </p>
+      <div className="flex flex-col gap-2 w-full max-w-md mt-1">
+        {prediction.options.map((o) => {
+          const sel = pickId === o.id;
+          return (
+            <button key={o.id} onClick={() => setPickId(o.id)}
+              className={`flex items-center gap-3 text-left px-4 py-3 rounded-lg border transition-all ${sel ? `border-${c}-500 bg-${c}-50 ring-2 ring-${c}-300` : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+              <span className={`shrink-0 w-5 h-5 rounded-full text-xs leading-5 text-center ${sel ? `bg-${c}-600 text-white` : 'bg-slate-200 text-slate-400'}`}>{sel ? '✓' : ''}</span>
+              <span className="text-sm font-medium text-slate-800">{o.title}</span>
+            </button>
+          );
+        })}
       </div>
+      <button onClick={commit} disabled={pickId == null}
+        className={`mt-1 px-5 py-3 rounded-lg text-white font-semibold bg-${c}-600 hover:bg-${c}-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}>
+        Lock it in &amp; reveal →
+      </button>
     </div>
   );
 }
 
-function LiveDemo({ searchFn, accent, examples, scoreLabel, headline, sub, emptyMsg, makeHighlight, makeFooter, makeExplain }){
-  const [guess, setGuess] = useState('');
+function LiveDemo({ searchFn, accent, examples, scoreLabel, headline, sub, emptyMsg, makeHighlight, makeFooter, makeExplain, prediction }){
+  const [pickId, setPickId] = useState(null);
   const [committed, setCommitted] = useState(false);
   const s = useSearch(searchFn);
   const c = accent === 'emerald' ? 'emerald' : 'indigo';
-  const reset = () => { setCommitted(false); setGuess(''); s.run(''); };
+  const reset = () => { setCommitted(false); setPickId(null); s.setQuery(''); s.run(''); };
+  const commitPrediction = () => { setCommitted(true); s.setQuery(prediction.query); s.run(prediction.query); };
+  const pickedOption = prediction.options.find((o) => o.id === pickId);
+  // verdict only applies while the auto-run prediction query is the one on screen
+  const verdict = (s.results && s.results.length > 0 && s.ran === prediction.query)
+    ? (s.results[0].item.id === pickId) : null;
   return (
     <SlideShell>
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-6 overflow-hidden">
         <h2 className="text-3xl font-bold text-slate-900 mb-1">{headline}</h2>
         <p className="text-slate-500 mb-5 text-sm">{sub}</p>
         {!committed
-          ? <PredictionGate accent={accent} guess={guess} setGuess={setGuess} onCommit={() => setCommitted(true)} />
+          ? <PredictionGate accent={accent} prediction={prediction} pickId={pickId} setPickId={setPickId} onCommit={commitPrediction} />
           : (
           <>
             <div className="mb-3 flex items-center gap-2 text-sm flex-wrap animate-scanIn">
-              <span className="text-slate-400">You predicted #1:</span>
-              <span className={`font-medium px-2 py-0.5 rounded-full bg-${c}-50 text-${c}-700`}>“{guess}”</span>
+              <span className="text-slate-400">You predicted #1 for “{prediction.query}”:</span>
+              <span className={`font-medium px-2 py-0.5 rounded-full bg-${c}-50 text-${c}-700`}>{pickedOption?.title}</span>
+              {verdict === true && <span className="font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">✓ Nailed it</span>}
+              {verdict === false && <span className="font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">✗ Not quite — see #1 below</span>}
               <button onClick={reset} className="text-xs text-slate-400 underline hover:text-slate-600">change</button>
             </div>
             <SearchBox query={s.query} setQuery={s.setQuery} onSearch={s.run} accent={accent} examples={examples} />
@@ -631,6 +645,16 @@ function LiveDemo({ searchFn, accent, examples, scoreLabel, headline, sub, empty
 function DemoKeyword(){
   return <LiveDemo
     searchFn={keywordSearch} accent="indigo" examples={EXAMPLES.keyword} scoreLabel="keyword"
+    prediction={{
+      query: 'wooden desk',
+      engine: 'keyword search',
+      options: [
+        { id: 1, title: 'Vintage wooden writing desk' },
+        { id: 4, title: 'Rustic reclaimed wood coffee table' },
+        { id: 8, title: 'Compact standing desk converter' },
+        { id: 5, title: 'Ergonomic mesh office chair' },
+      ],
+    }}
     headline="Keyword Search — Live"
     sub={<>Matched words are <mark className="bg-green-200 text-green-900 px-1 rounded">highlighted</mark>. Hit <strong>"why ranked?"</strong> to see exactly which words earned the score. It only finds listings that <em>literally contain</em> your words.</>}
     emptyMsg="No listings contain those exact words. Watch what semantic does with the same idea →"
@@ -754,6 +778,16 @@ function ExplainSemantic(){
 function DemoSemantic(){
   return <LiveDemo
     searchFn={semanticSearch} accent="emerald" examples={EXAMPLES.semantic} scoreLabel="similarity"
+    prediction={{
+      query: 'comfortable living room seating',
+      engine: 'semantic search',
+      options: [
+        { id: 3, title: 'Budget-friendly fabric sofa' },
+        { id: 56, title: 'Plush sectional sofa, like new' },
+        { id: 7, title: 'Leather recliner armchair' },
+        { id: 11, title: 'Velvet accent chair' },
+      ],
+    }}
     headline="Semantic Search — Live"
     sub={<>Scores are cosine similarity. Hit <strong>"why ranked?"</strong> to see the related words that connected each listing — including ones you never typed. <span className="text-emerald-700">But is meaning <em>always</em> better than literal matching? Hold that thought →</span></>}
     emptyMsg="No semantic matches — the query shares no known words with the catalog."
@@ -1007,6 +1041,235 @@ function CTA(){
   );
 }
 
+/* ---- Practical "Build Your Own" section ---------------------------------- */
+const TIERS = [
+  {
+    key: '0', name: 'Hand-rolled', tag: 'what you just saw', color: 'slate',
+    represent: 'TF-IDF + word co-occurrence, written by hand in plain JS.',
+    store: 'A couple of JavaScript objects held in memory.',
+    query: 'Cosine similarity over those hand-built vectors.',
+    runs: 'Browser only', cost: '$0', backend: false,
+    good: 'Perfect for learning how it works + tiny catalogs.',
+    bad: 'Less accurate than real models; you own the math.',
+    tools: [], libsNote: '— no library · ~150 lines of JS',
+  },
+  {
+    key: '1', name: 'Keyword library', tag: 'no-code-ish', color: 'indigo',
+    represent: 'Tokenize → inverted index. The library does it for you.',
+    store: 'A prebuilt index file shipped alongside your site.',
+    query: 'Library matches tokens and scores by frequency.',
+    runs: 'Browser only', cost: '$0', backend: false,
+    good: 'Exact words / SKUs, instant, dead simple, scales to thousands of pages.',
+    bad: 'No sense of meaning — misses synonyms and intent.',
+    tools: ['pagefind', 'minisearch', 'flexsearch'],
+  },
+  {
+    key: '2', name: 'Browser embeddings', tag: 'light code', color: 'emerald',
+    represent: 'A real neural embedding model, running in the browser.',
+    store: 'A vector array in memory (or a prebuilt .json of vectors).',
+    query: 'Embed the query in-browser, cosine vs the stored vectors.',
+    runs: 'Browser only', cost: '$0', backend: false,
+    good: 'True semantic search with zero backend and no API keys.',
+    bad: 'First visit downloads the model (~25–90MB, then cached); slower compute.',
+    tools: ['transformers'],
+  },
+  {
+    key: '3', name: 'Managed service', tag: 'intermediate', color: 'violet',
+    represent: 'An embedding API (OpenAI, Cohere, HF) — pennies at this scale.',
+    store: 'A vector database (Pinecone, pgvector, Qdrant, Weaviate).',
+    query: 'Embed via the API, nearest-neighbour search in the DB.',
+    runs: 'Needs a server', cost: 'free tier → $', backend: true,
+    good: 'Scales to millions, shared index, fast, rich metadata filters.',
+    bad: 'API keys can’t live in the browser → you now need a backend + ops.',
+    tools: ['openai', 'cohere', 'pinecone', 'supabase', 'pgvector', 'qdrant'],
+  },
+];
+// Brand registry. Tools with a `domain` render that site's favicon; tools
+// without one fall back to a colored monogram (and so does any favicon that
+// fails to load), so the deck still looks intentional offline.
+const TOOLS = {
+  pagefind:     { name: 'Pagefind',       domain: 'pagefind.app',   color: '#8b5cf6', url: 'https://pagefind.app' },
+  minisearch:   { name: 'MiniSearch',     color: '#0ea5e9', url: 'https://github.com/lucaong/minisearch' },
+  flexsearch:   { name: 'FlexSearch',     color: '#f59e0b', url: 'https://github.com/nextapps-de/flexsearch' },
+  transformers: { name: 'Transformers.js', domain: 'huggingface.co', color: '#ffb000', url: 'https://huggingface.co/docs/transformers.js' },
+  openai:       { name: 'OpenAI',         domain: 'openai.com',     color: '#0f172a', url: 'https://platform.openai.com/docs/guides/embeddings' },
+  cohere:       { name: 'Cohere',         domain: 'cohere.com',     color: '#39594d', url: 'https://docs.cohere.com/docs/embeddings' },
+  pinecone:     { name: 'Pinecone',       domain: 'pinecone.io',    color: '#1b17f5', url: 'https://www.pinecone.io' },
+  supabase:     { name: 'Supabase',       domain: 'supabase.com',   color: '#3ecf8e', url: 'https://supabase.com/docs/guides/ai' },
+  pgvector:     { name: 'pgvector',       domain: 'postgresql.org', color: '#336791', url: 'https://github.com/pgvector/pgvector' },
+  qdrant:       { name: 'Qdrant',         domain: 'qdrant.tech',    color: '#dc244c', url: 'https://qdrant.tech' },
+};
+
+function ToolLogo({ t, compact }){
+  const [err, setErr] = useState(false);
+  const icon = (t.domain && !err)
+    ? <img src={`https://www.google.com/s2/favicons?domain=${t.domain}&sz=64`} onError={() => setErr(true)}
+        alt={t.name} title={t.name} loading="lazy" className="w-5 h-5 rounded-sm" />
+    : <span title={t.name} style={{ backgroundColor: t.color }}
+        className="w-5 h-5 rounded-sm grid place-items-center text-white text-[11px] font-bold leading-none">{t.name[0]}</span>;
+  const inner = compact
+    ? <span title={t.name} className="inline-grid place-items-center w-8 h-8 rounded-md bg-white border border-slate-200 hover:border-slate-300 transition-colors">{icon}</span>
+    : <span className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-full pl-1.5 pr-3 py-1 text-sm font-medium text-slate-700 hover:border-slate-300 hover:text-slate-900 transition-colors">{icon}{t.name}</span>;
+  if (!t.url) return inner;
+  return <a href={t.url} target="_blank" rel="noopener noreferrer" title={`${t.name} — open site`}>{inner}</a>;
+}
+const PIPE_INTERFACE = [
+  { fn: 'prepare(doc)',   out: 'text',            swap: false },
+  { fn: 'embed(text)',    out: 'representation',  swap: true  },
+  { fn: 'store(reps)',    out: 'index',           swap: false },
+  { fn: 'search(query)',  out: 'ranked results',  swap: false },
+];
+
+function BuildPipeline(){
+  const [sel, setSel] = useState(null); // focused tier column, or null = show all equally
+  const stages = [
+    { n: '1', label: 'Prepare',   hint: 'same every tier', get: () => 'Clean the text; skip chunking for short items.', emphasize: false },
+    { n: '2', label: 'Represent', hint: '← the choice',    get: (ti) => ti.represent, emphasize: true },
+    { n: '3', label: 'Store',     hint: 'follows from it',  get: (ti) => ti.store,     emphasize: false },
+    { n: '4', label: 'Search',    hint: 'follows from it',  get: (ti) => ti.query,     emphasize: false },
+  ];
+  const dim = (idx) => (sel !== null && sel !== idx ? 'opacity-40' : '');
+  const GRID = 'grid grid-cols-[150px_repeat(4,minmax(0,1fr))] gap-2.5 min-w-[1000px]';
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-[1400px] mx-auto w-full px-8 overflow-y-auto py-2">
+        <h2 className="text-4xl font-bold text-slate-900 mb-2">Build your own: one pipeline, swappable parts</h2>
+        <p className="text-slate-500 mb-5 text-base">The same four steps power <em>every</em> search system. Read a <strong>row</strong> to see how each tier implements that step; read a <strong>column</strong> to build one tier top-to-bottom. The pipeline shape never changes — only the cells do. <span className="text-slate-400">(Click a tier to focus its column.)</span></p>
+        <div className="overflow-x-auto pb-1">
+          <div className={GRID}>
+            {/* corner + tier headers */}
+            <div />
+            {TIERS.map((ti, idx) => {
+              const on = sel === idx;
+              return (
+                <button key={ti.key} onClick={() => setSel(on ? null : idx)}
+                  className={`text-left rounded-xl p-3.5 border-2 transition-all ${dim(idx)} ${on ? `border-${ti.color}-500 bg-${ti.color}-50` : `border-${ti.color}-200 bg-white hover:border-${ti.color}-300`}`}>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className={`text-xs font-bold text-${ti.color}-600`}>TIER {ti.key}</span>
+                    <span className="text-[11px] text-slate-400 truncate">{ti.tag}</span>
+                  </div>
+                  <div className="text-lg font-bold text-slate-800 leading-tight mt-0.5">{ti.name}</div>
+                  <div className="mt-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ti.backend ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'}`}>{ti.backend ? '⚙ backend' : '✓ static'} · {ti.cost}</span>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {ti.tools.length > 0
+                      ? ti.tools.map((k) => <ToolLogo key={k} t={TOOLS[k]} compact />)
+                      : <span className="text-xs text-slate-400">no library</span>}
+                  </div>
+                </button>
+              );
+            })}
+            {/* stage rows */}
+            {stages.map((st) => (
+              <React.Fragment key={st.n}>
+                <div className={`rounded-xl p-3 flex flex-col justify-center ${st.emphasize ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-6 h-6 rounded-full text-xs leading-6 text-center font-bold ${st.emphasize ? 'bg-white text-slate-800' : 'bg-slate-300 text-slate-600'}`}>{st.n}</span>
+                    <span className="text-base font-bold">{st.label}</span>
+                  </div>
+                  <span className={`text-xs mt-1 ${st.emphasize ? 'text-amber-300 font-semibold' : 'text-slate-400'}`}>{st.hint}</span>
+                </div>
+                {TIERS.map((ti, idx) => (
+                  <div key={ti.key} className={`rounded-xl p-3.5 border text-sm leading-relaxed transition-all flex items-center ${dim(idx)} ${st.emphasize ? `bg-${ti.color}-50 border-${ti.color}-200 text-slate-700` : 'bg-white border-slate-200 text-slate-600'}`}>
+                    {st.get(ti)}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+        {/* code interface capstone */}
+        <div className="bg-slate-900 rounded-xl p-5 mt-4 font-mono text-[15px] leading-relaxed overflow-x-auto">
+          {PIPE_INTERFACE.map((l) => (
+            <div key={l.fn} className="whitespace-nowrap">
+              <span className={l.swap ? 'text-violet-300 font-bold' : 'text-slate-300'}>{l.fn}</span>
+              <span className="text-slate-500"> → </span>
+              <span className="text-slate-400">{l.out}</span>
+              {l.swap && <span className="text-violet-400">{'   // ← pick this; store + search follow'}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function TierMatrix(){
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 overflow-y-auto py-1">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1">Four tiers — and the one line that splits them</h2>
+        <p className="text-slate-500 mb-4 text-sm">The real decision isn’t “how much does it cost?” — embeddings are pennies at this scale. It’s <strong>“can this stay a static site, or do I now need a backend?”</strong></p>
+        <div className="grid md:grid-cols-4 gap-3">
+          {TIERS.map((ti) => (
+            <div key={ti.key} className={`rounded-2xl border-2 border-${ti.color}-200 bg-white p-4 flex flex-col`}>
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-xs font-bold text-${ti.color}-600`}>TIER {ti.key}</span>
+                <span className="text-[10px] text-slate-400">{ti.tag}</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-800 mt-0.5">{ti.name}</h3>
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ti.backend ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'}`}>{ti.backend ? 'needs backend' : 'static, no keys'}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">{ti.cost}</span>
+              </div>
+              <p className="text-xs text-emerald-700 mt-3 flex gap-1.5"><span>✓</span><span>{ti.good}</span></p>
+              <p className="text-xs text-rose-600 mt-1.5 flex gap-1.5"><span>✗</span><span>{ti.bad}</span></p>
+              <div className="mt-auto pt-3">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5 pt-2 border-t border-slate-100">Reach for</p>
+                {ti.tools.length > 0
+                  ? <div className="flex flex-wrap gap-1.5">{ti.tools.map((k) => <ToolLogo key={k} t={TOOLS[k]} compact />)}</div>
+                  : <p className="text-[11px] text-slate-400">{ti.libsNote}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid md:grid-cols-2 gap-3">
+          <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+            <p className="text-sm font-bold text-green-800">◀ Tiers 0–2 · Static</p>
+            <p className="text-xs text-green-900/80 mt-1">Ship to GitHub Pages / Netlify / Vercel for free. No server, no secrets, no ops — and it covers the large majority of small-to-mid sites.</p>
+          </div>
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+            <p className="text-sm font-bold text-amber-800">Tier 3 · Backend ▶</p>
+            <p className="text-xs text-amber-900/80 mt-1">API keys can’t live in the browser, so you add a serverless function + a vector DB. Worth it for millions of items, a shared always-fresh index, or rich metadata filters.</p>
+          </div>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
+function PickAndShip(){
+  const steps = [
+    { q: 'Users search exact terms — SKUs, names, model numbers?', yes: 'Tier 1 keyword is plenty. Ship it.', color: 'indigo' },
+    { q: 'Need to match meaning / synonyms, catalog under ~50k items?', yes: 'Tier 2 browser embeddings — semantic, still $0, still static.', color: 'emerald' },
+    { q: 'Millions of items, a shared index, or heavy filtering?', yes: 'Tier 3 managed vector DB — accept the backend.', color: 'violet' },
+  ];
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-4xl mx-auto w-full px-6 overflow-y-auto py-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1 text-center">Which do you actually pick?</h2>
+        <p className="text-slate-500 mb-5 text-sm text-center">Walk down until you hit your first “yes.” Most sites stop in the top two.</p>
+        <div className="space-y-3">
+          {steps.map((s, i) => (
+            <div key={i} className={`rounded-xl bg-white border border-slate-200 border-l-4 border-l-${s.color}-500 p-4 flex gap-3 items-start`}>
+              <span className={`shrink-0 w-7 h-7 rounded-full bg-${s.color}-100 text-${s.color}-700 font-bold grid place-items-center text-sm`}>{i+1}</span>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{s.q}</p>
+                <p className={`text-sm text-${s.color}-700 mt-0.5`}>→ {s.yes}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white text-center">
+          <p className="text-base font-bold">💡 You don’t have to choose just one</p>
+          <p className="text-sm text-indigo-100 mt-1.5 max-w-2xl mx-auto">Because every tier shares the same <span className="font-mono bg-white/15 px-1 rounded">prepare → embed → store → search</span> shape, you can run keyword <em>and</em> semantic side by side and fuse their scores — the hybrid approach from the takeaways slide. Start at Tier 1, add Tier 2 beside it, blend. No rewrite.</p>
+        </div>
+      </div>
+    </SlideShell>
+  );
+}
+
 const SLIDES = [
   { title: 'Title & Intro', render: () => <SlideTitle /> },
   { title: 'Why It Matters', render: () => <WhyItMatters /> },
@@ -1017,6 +1280,9 @@ const SLIDES = [
   { title: 'Side-by-Side Comparison', render: () => <Comparison /> },
   { title: "When Semantic Isn't Magic", render: () => <FailureCase /> },
   { title: 'Key Takeaways', render: () => <Takeaways /> },
+  { title: 'Build Your Own — The Pipeline', render: () => <BuildPipeline /> },
+  { title: 'Build Your Own — Pick a Tier', render: () => <TierMatrix /> },
+  { title: 'Build Your Own — Which to Pick', render: () => <PickAndShip /> },
   { title: 'Work With Us', render: () => <CTA /> },
 ];
 
