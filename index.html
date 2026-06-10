@@ -1198,6 +1198,40 @@ function PickAndShip(){
   );
 }
 
+function MaintenanceReality(){
+  const realities = [
+    { icon:'🔄', color:'indigo',  t:'The index drifts from reality', d:'New, edited, and deleted items go stale unless they’re re-embedded.', do:'Sync on write (webhook / cron) — not set-and-forget.' },
+    { icon:'🧬', color:'violet',  t:'Swapping the model = re-embed everything', d:'Vectors from different models aren’t comparable, and dimensions change.', do:'Pin the model version; budget for a full re-index.' },
+    { icon:'🎯', color:'emerald', t:'Relevance is never “done”', d:'Thresholds and hybrid weights drift as your catalog and users change.', do:'Keep “golden queries” and re-test on every change.' },
+    { icon:'📉', color:'sky',     t:'You can’t improve what you don’t measure', d:'Zero-result rate, click-through, and “searched then left” hide the problems.', do:'Log queries + outcomes, and actually review them.' },
+    { icon:'💸', color:'amber',   t:'Cost & latency grow with the catalog', d:'Embedding calls and vector storage scale with size and traffic.', do:'Batch + cache embeddings; right-size your approach.' },
+    { icon:'🛟', color:'rose',    t:'Plan for the dependency failing', d:'API downtime, rate limits, and model deprecations happen.', do:'Fall back to keyword; keep a reindex runbook.' },
+  ];
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col justify-center max-w-5xl mx-auto w-full px-6 overflow-y-auto py-2">
+        <h2 className="text-3xl font-bold text-slate-900 mb-1 text-center">The part nobody demos: keeping it good</h2>
+        <p className="text-slate-500 mb-5 text-sm text-center max-w-2xl mx-auto">Standing up semantic search is the easy part. Search that <em>stays</em> relevant is an ongoing job — here’s what you’re signing up for.</p>
+        <div className="grid md:grid-cols-2 gap-3">
+          {realities.map((r, i) => (
+            <div key={i} className={`rounded-xl bg-white border border-slate-200 border-l-4 border-l-${r.color}-500 p-4 flex gap-3 items-start`}>
+              <span className={`shrink-0 w-9 h-9 rounded-lg bg-${r.color}-100 grid place-items-center text-lg`}>{r.icon}</span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">{r.t}</h3>
+                <p className="text-sm text-slate-500 mt-0.5">{r.d}</p>
+                <p className={`text-xs text-${r.color}-700 mt-1.5 font-medium`}>→ {r.do}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-sm text-slate-700 bg-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+          The demo is the easy 20%. <strong>Relevance that stays good is the other 80%</strong> — budget for the upkeep, or it quietly decays.
+        </p>
+      </div>
+    </SlideShell>
+  );
+}
+
 const SLIDES = [
   { title: 'Title & Intro', render: () => <SlideTitle /> },
   { title: 'Why It Matters', render: () => <WhyItMatters /> },
@@ -1210,6 +1244,7 @@ const SLIDES = [
   { title: 'Key Takeaways', render: () => <Takeaways /> },
   { title: 'Build Your Own — The Pipeline', render: () => <BuildPipeline /> },
   { title: 'Build Your Own — Which to Pick', render: () => <PickAndShip /> },
+  { title: 'Keeping It Good — Maintenance', render: () => <MaintenanceReality /> },
   { title: 'Work With Us', render: () => <CTA /> },
 ];
 
