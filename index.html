@@ -1232,8 +1232,67 @@ function MaintenanceReality(){
   );
 }
 
+const RW_EXAMPLES = [
+  { name:'Spotify',        flavor:'Podcasts · natural language', domain:'spotify.com',       accent:'emerald',
+    how:'Type a vibe like “podcasts about starting a business” and fine-tuned embeddings + vector search find the right episode — even when the title shares none of your words.',
+    srcLabel:'Spotify Engineering', src:'https://engineering.atspotify.com/2022/03/introducing-natural-language-search-for-podcast-episodes' },
+  { name:'Pinterest',      flavor:'Visual search · images, not text', domain:'pinterest.com', accent:'rose',
+    how:'Matches on pixels, not words. Crop one object out of a photo — a lamp, a sofa — and image embeddings return visually similar Pins across billions of images.',
+    srcLabel:'Pinterest Engineering', src:'https://medium.com/pinterest-engineering/unifying-visual-embeddings-for-visual-search-at-pinterest-74ea7ea103f0' },
+  { name:'Zillow',         flavor:'Real estate · plain English', domain:'zillow.com',         accent:'indigo',
+    how:'Search homes the way you talk — “$700K homes in Charlotte with a backyard” — and the AI parses price, beds, and features from one sentence instead of filters.',
+    srcLabel:'Zillow / PR Newswire', src:'https://www.prnewswire.com/news-releases/zillows-new-ai-powered-natural-language-search-is-a-first-in-real-estate-301731350.html' },
+  { name:'Amazon',         flavor:'Shopping · conversational AI', domain:'amazon.com',         accent:'amber',
+    how:'A generative assistant that answers on intent: tell it you’re hiking Kilimanjaro and it infers a multi-day trek, then suggests a backpack with a hydration reservoir.',
+    srcLabel:'About Amazon', src:'https://www.aboutamazon.com/news/retail/alexa-for-shopping-ai-assistant' },
+  { name:'Stack Overflow', flavor:'Developer Q&A · ask like a human', domain:'stackoverflow.com', accent:'violet',
+    how:'Ask a full question in plain English; BERT embeddings stored in a vector database return conceptually-matching answers instead of rigid keyword hits.',
+    srcLabel:'Stack Overflow Blog', src:'https://stackoverflow.blog/2023/07/31/ask-like-a-human-implementing-semantic-search-on-stack-overflow/' },
+];
+
+function RwLogo({ domain, name }){
+  const srcs = [`https://logo.clearbit.com/${domain}?size=128`, `https://www.google.com/s2/favicons?domain=${domain}&sz=128`];
+  const [i, setI] = useState(0);
+  if (i >= srcs.length) return <span className="text-xl font-extrabold text-slate-400">{name[0]}</span>;
+  return <img src={srcs[i]} onError={() => setI(i + 1)} alt={`${name} logo`} className="max-w-[36px] max-h-[36px] object-contain" />;
+}
+
+function BonusExamples(){
+  return (
+    <SlideShell>
+      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-6 overflow-y-auto py-2">
+        <span className="text-xs font-bold tracking-[0.25em] text-indigo-500 uppercase">You already use it</span>
+        <h2 className="text-3xl font-bold text-slate-900 mt-1">Smart search in the wild</h2>
+        <p className="text-slate-500 text-sm mb-4 max-w-2xl">Before the how — five products you've probably used today that already search by <strong>meaning</strong>, not keywords. Different flavors on purpose: audio, images, real estate, shopping, and developer Q&amp;A.</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {RW_EXAMPLES.map((e) => (
+            <div key={e.name} className={`bg-white rounded-xl border border-slate-200 border-t-4 border-t-${e.accent}-500 shadow-sm p-4 flex flex-col`}>
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 w-12 h-12 rounded-xl bg-white border border-slate-200 grid place-items-center overflow-hidden">
+                  <RwLogo domain={e.domain} name={e.name} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 leading-tight">{e.name}</h3>
+                  <span className={`text-[11px] font-medium text-${e.accent}-700`}>{e.flavor}</span>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mt-3 leading-relaxed flex-1">{e.how}</p>
+              <a href={e.src} target="_blank" rel="noopener noreferrer"
+                 className={`text-[11px] font-medium mt-3 pt-2 border-t border-slate-100 text-${e.accent}-700 hover:underline`}>
+                {e.srcLabel} ↗
+              </a>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-400 mt-4">Each example links to the company's own engineering blog or press announcement.</p>
+      </div>
+    </SlideShell>
+  );
+}
+
 const SLIDES = [
   { title: 'Title & Intro', render: () => <SlideTitle /> },
+  { title: 'Smart Search in the Wild', render: () => <BonusExamples /> },
   { title: 'Why It Matters', render: () => <WhyItMatters /> },
   { title: 'How Keyword Search Works', render: () => <ExplainKeyword /> },
   { title: 'Keyword Search — Live', render: () => <DemoKeyword /> },

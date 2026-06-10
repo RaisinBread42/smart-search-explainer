@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Search in the Wild — Real-World Examples</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  ::selection{background:#c7d2fe;}
+  @media print{
+    body{background:#fff;}
+    .card{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important;}
+  }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+<div class="max-w-4xl mx-auto px-6 py-9">
+
+  <header class="mb-6">
+    <span class="text-xs font-bold tracking-[0.25em] text-indigo-600 uppercase">Reference</span>
+    <h1 class="text-3xl font-extrabold text-slate-900 mt-1">Smart search in the wild</h1>
+    <p class="text-slate-600 mt-2 max-w-3xl">Five public products that search by <strong>meaning</strong> — semantic, vector, or visual search — not just keywords. Different flavors on purpose: audio, images, real estate, shopping, and developer Q&amp;A.</p>
+  </header>
+
+  <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+  <p class="text-xs text-slate-400 mt-7">Each claim is from the company's own engineering blog or press. Compiled June 2026 · Obsidian Software.</p>
+</div>
+
+<script>
+const EXAMPLES = [
+  {
+    name: 'Spotify', flavor: 'Podcast search · natural language', domain: 'spotify.com', accent: 'emerald',
+    url: 'https://open.spotify.com',
+    how: 'Natural-language search for podcast episodes. Fine-tuned sentence embeddings + nearest-neighbour vector search surface the right episode even when the title shares none of your words — e.g. "electric cars climate impact." Runs alongside classic keyword search.',
+    src: [['Spotify Engineering', 'https://engineering.atspotify.com/2022/03/introducing-natural-language-search-for-podcast-episodes']],
+  },
+  {
+    name: 'Pinterest', flavor: 'Visual search · images, not text', domain: 'pinterest.com', accent: 'rose',
+    url: 'https://www.pinterest.com',
+    how: 'Matches on pixels, not words. Deep image embeddings + distributed nearest-neighbour search over billions of Pins let you search by a photo — or crop one object out of it (a lamp, a sofa) — and get visually similar results even with no caption.',
+    src: [['Pinterest Engineering', 'https://medium.com/pinterest-engineering/unifying-visual-embeddings-for-visual-search-at-pinterest-74ea7ea103f0']],
+  },
+  {
+    name: 'Zillow', flavor: 'Real estate · plain-English search', domain: 'zillow.com', accent: 'indigo',
+    url: 'https://www.zillow.com',
+    how: 'Search homes the way you\'d talk: "$700K homes in Charlotte with a backyard." Its AI parses intent — price, beds, features, commute time, schools — from one sentence instead of stacked filters. First major real-estate marketplace to ship it.',
+    src: [['Zillow / PR Newswire', 'https://www.prnewswire.com/news-releases/zillows-new-ai-powered-natural-language-search-is-a-first-in-real-estate-301731350.html']],
+  },
+  {
+    name: 'Amazon', flavor: 'Shopping · conversational AI (Rufus → Alexa)', domain: 'amazon.com', accent: 'amber',
+    url: 'https://www.amazon.com',
+    how: 'A generative shopping assistant that answers on intent, not keywords. Told a shopper is "hiking Mt. Kilimanjaro," it infers a multi-day trek and suggests a backpack with a hydration reservoir. 300M+ shoppers have used it.',
+    src: [['About Amazon', 'https://www.aboutamazon.com/news/retail/alexa-for-shopping-ai-assistant']],
+  },
+  {
+    name: 'Stack Overflow', flavor: 'Developer Q&A · ask like a human', domain: 'stackoverflow.com', accent: 'violet',
+    url: 'https://stackoverflow.com',
+    how: 'Semantic search encodes questions and answers with a BERT model and stores the vectors in a vector database. You can ask a full question in plain English and get conceptually-matching answers instead of rigid keyword hits.',
+    src: [['Stack Overflow Blog', 'https://stackoverflow.blog/2023/07/31/ask-like-a-human-implementing-semantic-search-on-stack-overflow/']],
+  },
+];
+
+const bar  = { emerald:'border-l-emerald-500', indigo:'border-l-indigo-500', amber:'border-l-amber-500', rose:'border-l-rose-500', violet:'border-l-violet-500' };
+const text = { emerald:'text-emerald-700', indigo:'text-indigo-700', amber:'text-amber-700', rose:'text-rose-700', violet:'text-violet-700' };
+
+document.getElementById('grid').innerHTML = EXAMPLES.map((e) => {
+  const mono = e.name[0];
+  // logo with graceful fallback: Clearbit → favicon → monogram
+  const logo = `<img src="https://logo.clearbit.com/${e.domain}?size=128"
+      onerror="this.onerror=null; this.dataset.f=(this.dataset.f||0); if(this.dataset.f=='0'){this.dataset.f='1'; this.src='https://www.google.com/s2/favicons?domain=${e.domain}&sz=128';} else {this.replaceWith(Object.assign(document.createElement('span'),{className:'text-xl font-extrabold text-slate-400',textContent:'${mono}'}));}"
+      alt="${e.name} logo" class="max-w-[44px] max-h-[44px] object-contain" />`;
+  return `
+  <div class="card bg-white rounded-xl border border-slate-200 border-t-4 ${bar[e.accent].replace('border-l-','border-t-')} shadow-sm p-4 flex flex-col">
+    <div class="flex items-center gap-3">
+      <div class="shrink-0 w-14 h-14 rounded-xl bg-white border border-slate-200 grid place-items-center overflow-hidden">${logo}</div>
+      <div class="min-w-0">
+        <h2 class="font-bold text-slate-900 text-lg leading-tight">${e.name}</h2>
+        <span class="text-xs font-medium ${text[e.accent]}">${e.flavor}</span>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mt-3 leading-relaxed flex-1">${e.how}</p>
+    <p class="text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-100">
+      <a href="${e.url}" target="_blank" rel="noopener" class="hover:text-slate-600">${e.domain} ↗</a>
+      &nbsp;·&nbsp; ${e.src.map(([t,u]) => `<a href="${u}" target="_blank" rel="noopener" class="underline hover:text-slate-600">${t}</a>`).join(' · ')}
+    </p>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>
