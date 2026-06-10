@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Semantic Search in the Browser — Neural Embeddings Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  ::selection{background:#a7f3d0;}
+  .fade{animation:fade .4s cubic-bezier(.22,1,.36,1) both;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .bar{transition:width .6s cubic-bezier(.22,1,.36,1);}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<div class="max-w-3xl mx-auto px-5 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center gap-2 mb-1">
+    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">100% in-browser · no API keys · no server</span>
+  </div>
+  <h1 class="text-3xl font-extrabold text-slate-900">Semantic search with a <span class="text-emerald-600">real neural model</span></h1>
+  <p class="mt-2 text-slate-600 leading-relaxed">
+    This page runs <strong>all-MiniLM-L6-v2</strong> — an actual sentence-embedding model — <strong>entirely in your browser</strong> via
+    <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener" class="text-emerald-700 underline decoration-dotted">Transformers.js</a>.
+    It searches by <em>meaning</em>, not keywords — so “cheap couch” finds the budget sofa. No API keys, no server, no vector database.
+  </p>
+
+  <!-- Loading state -->
+  <div id="loading" class="mt-6 bg-white border border-slate-200 rounded-xl p-5">
+    <div class="flex items-center justify-between">
+      <p id="loadingMsg" class="text-sm font-medium text-slate-700">Starting up…</p>
+      <p id="loadingPct" class="text-sm font-bold text-emerald-600 tabular-nums">0%</p>
+    </div>
+    <div class="mt-3 h-2.5 rounded-full bg-slate-200 overflow-hidden">
+      <div id="loadingBar" class="bar h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style="width:0%"></div>
+    </div>
+    <p class="mt-2 text-xs text-slate-400">First visit downloads the model (~25&nbsp;MB, quantized). The browser caches it, so every visit after this is instant.</p>
+  </div>
+
+  <!-- Search UI (hidden until ready) -->
+  <div id="app" class="mt-6 hidden">
+    <div class="flex gap-2">
+      <input id="q" type="text" placeholder="Search by meaning, e.g. cheap couch…"
+        class="flex-1 px-4 py-3 rounded-lg border border-slate-300 text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400" />
+      <button id="go" class="px-6 py-3 rounded-lg text-white font-semibold bg-emerald-600 hover:bg-emerald-700 transition-colors">Search</button>
+    </div>
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <span class="text-xs text-slate-400">Try:</span>
+      <span class="ex text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer transition-colors">cheap couch</span>
+      <span class="ex text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer transition-colors">something to play music on</span>
+      <span class="ex text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer transition-colors">quiet home office</span>
+      <span class="ex text-xs px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer transition-colors">affordable furniture</span>
+    </div>
+    <p id="meta" class="mt-3 text-xs text-slate-400"></p>
+    <div id="results" class="mt-4 space-y-3"></div>
+  </div>
+
+  <footer class="mt-10 pt-5 border-t border-slate-200 text-xs text-slate-400">
+    Works offline after the first load · model: Xenova/all-MiniLM-L6-v2 (384-dim sentence embeddings)
+  </footer>
+</div>
+
+<script type="module">
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+
+/* ---------------------------------------------------------------------------
+   DATA — a sample marketplace catalog. We embed "title. description" per item.
+   Swap this array for your own records to search your own data.
+--------------------------------------------------------------------------- */
+const ITEMS = [
+  {id:1,category:"furniture",title:"Vintage wooden writing desk",description:"Solid oak desk with three drawers and a worn patina from decades of use. Perfect for a home office or study nook."},
+  {id:2,category:"furniture",title:"Mid-century teak dining table",description:"Seats six comfortably with tapered legs and a rich teak finish. A timeless centerpiece for any dining room."},
+  {id:3,category:"furniture",title:"Budget-friendly fabric sofa",description:"Comfortable three-seat couch in soft grey fabric. An inexpensive choice for first apartments and rentals."},
+  {id:4,category:"furniture",title:"Rustic reclaimed wood coffee table",description:"Handcrafted from reclaimed barn wood with sturdy iron legs. Brings warmth and character to a living space."},
+  {id:5,category:"furniture",title:"Ergonomic mesh office chair",description:"Breathable mesh back with adjustable lumbar support and armrests. Designed for long hours at the computer."},
+  {id:6,category:"furniture",title:"Cheap pine bookshelf",description:"Tall five-shelf bookcase in light pine. An affordable storage solution for books, plants, and decor."},
+  {id:7,category:"furniture",title:"Leather recliner armchair",description:"Plush brown leather recliner with a smooth reclining mechanism. The ultimate seat for movie nights."},
+  {id:8,category:"furniture",title:"Compact standing desk converter",description:"Adjustable riser that turns any table into a standing desk. Promotes better posture during the workday."},
+  {id:9,category:"furniture",title:"Walnut nightstand with drawer",description:"Small bedside table in dark walnut with a single soft-close drawer. Pairs well with most bedroom sets."},
+  {id:10,category:"furniture",title:"Inexpensive metal bed frame",description:"Sturdy queen-size steel frame that assembles in minutes. A low-cost upgrade from a box spring."},
+  {id:11,category:"furniture",title:"Velvet accent chair",description:"Emerald green velvet chair with gold-tone legs. A statement piece that elevates any reading corner."},
+  {id:12,category:"furniture",title:"Solid maple dresser",description:"Six-drawer dresser in natural maple with dovetail joinery. Built to last generations."},
+  {id:13,category:"furniture",title:"Foldable wooden TV tray set",description:"Set of four portable snack tables in bamboo wood. Great for small apartments and game nights."},
+  {id:14,category:"furniture",title:"Outdoor wicker patio set",description:"Weather-resistant wicker sofa and two chairs with cushions. Transforms a balcony into a lounge."},
+  {id:15,category:"electronics",title:"Noise-cancelling wireless headphones",description:"Over-ear Bluetooth headphones with 30-hour battery and active noise cancellation. Ideal for travel and focus."},
+  {id:16,category:"electronics",title:"Budget true-wireless earbuds",description:"Affordable in-ear buds with a charging case and decent bass. A cheap entry into wireless audio."},
+  {id:17,category:"electronics",title:"4K ultra-HD smart television",description:"55-inch LED TV with HDR, streaming apps, and voice remote. Crisp picture for movies and gaming."},
+  {id:18,category:"electronics",title:"Mechanical gaming keyboard",description:"RGB-backlit keyboard with tactile brown switches and a detachable cable. Built for fast, precise typing."},
+  {id:19,category:"electronics",title:"Portable Bluetooth speaker",description:"Waterproof speaker with deep bass and 12-hour playtime. Clips onto a backpack for music anywhere."},
+  {id:20,category:"electronics",title:"Lightweight ultrabook laptop",description:"Thin 14-inch laptop with all-day battery and a fast SSD. Handles work, browsing, and light editing."},
+  {id:21,category:"electronics",title:"Affordable Android smartphone",description:"Unlocked phone with a big screen, dual cameras, and a budget price. Great value for everyday use."},
+  {id:22,category:"electronics",title:"Wireless ergonomic mouse",description:"Contoured mouse with silent clicks and a long-lasting battery. Reduces wrist strain during long sessions."},
+  {id:23,category:"electronics",title:"Smart home security camera",description:"Indoor 1080p camera with motion alerts and night vision. Watch your home from your phone anywhere."},
+  {id:24,category:"electronics",title:"Fast USB-C charging hub",description:"Seven-port hub with HDMI, card reader, and power delivery. Expands a laptop into a full workstation."},
+  {id:25,category:"electronics",title:"Curved ultrawide computer monitor",description:"34-inch QHD monitor with a curved panel for immersive work and play. Doubles your screen real estate."},
+  {id:26,category:"electronics",title:"Budget fitness smartwatch",description:"Tracks steps, heart rate, and sleep with a week of battery. An inexpensive way to start a health routine."},
+  {id:27,category:"electronics",title:"Compact mirrorless camera",description:"24-megapixel mirrorless camera with interchangeable lenses and 4K video. A serious step up from a phone."},
+  {id:28,category:"electronics",title:"Robot vacuum cleaner",description:"Self-charging vacuum that maps your home and avoids obstacles. Schedule cleanings from an app."},
+  {id:29,category:"listings",title:"Cozy one-bedroom apartment for rent",description:"Sunlit unit near downtown with hardwood floors and updated kitchen. Walking distance to cafes and transit."},
+  {id:30,category:"listings",title:"Used mountain bike in great shape",description:"Lightly ridden 21-speed mountain bike with new tires and brakes. Perfect for trails and commuting."},
+  {id:31,category:"listings",title:"Garage sale: tools and yard equipment",description:"Assorted hand tools, a lawnmower, and a leaf blower priced to sell. Everything must go this weekend."},
+  {id:32,category:"listings",title:"Handmade ceramic dinnerware set",description:"Twelve-piece stoneware set glazed in earthy tones. Microwave and dishwasher safe, made by a local artist."},
+  {id:33,category:"listings",title:"Acoustic guitar with soft case",description:"Full-size dreadnought acoustic guitar with a warm tone. Includes a padded gig bag and spare strings."},
+  {id:34,category:"listings",title:"Affordable winter tires set of four",description:"Used but reliable snow tires with plenty of tread left. A cheap way to stay safe on icy roads."},
+  {id:35,category:"listings",title:"Espresso machine, barely used",description:"Semi-automatic espresso maker with a steam wand for lattes. Pulls rich shots straight from your kitchen."},
+  {id:36,category:"listings",title:"Kids wooden play kitchen",description:"Adorable toy kitchen made of sustainable wood with knobs that click. Sparks hours of imaginative play."},
+  {id:37,category:"listings",title:"Professional studio microphone",description:"Large-diaphragm condenser mic with a shock mount and pop filter. Captures clean vocals and podcasts."},
+  {id:38,category:"listings",title:"Set of vintage vinyl records",description:"Curated crate of classic rock and jazz LPs in excellent condition. A treat for any record collector."},
+  {id:39,category:"listings",title:"Inexpensive moving boxes bundle",description:"Thirty sturdy cardboard boxes in assorted sizes with tape. A cheap kit for an upcoming move."},
+  {id:40,category:"listings",title:"Hardly-used jogging stroller",description:"All-terrain three-wheel stroller with a canopy and storage basket. Smooth ride for runs in the park."},
+  {id:41,category:"listings",title:"Camping tent for four people",description:"Waterproof dome tent that pitches in ten minutes. Roomy enough for a family weekend in the woods."},
+  {id:42,category:"listings",title:"Antique brass table lamp",description:"Elegant brass lamp with a pleated linen shade and warm glow. Adds a vintage touch to a desk or console."},
+  {id:43,category:"listings",title:"Electric guitar starter bundle",description:"Beginner electric guitar with a small amp, cable, and picks. Everything you need to start playing today."},
+  {id:44,category:"listings",title:"Stainless steel cookware set",description:"Ten-piece pots and pans set with tempered glass lids. Even heating for everyday home cooking."},
+  {id:45,category:"listings",title:"Folding treadmill for home gym",description:"Compact motorized treadmill that folds flat for storage. Build a workout routine without the gym fees."},
+  {id:46,category:"listings",title:"Designer leather handbag",description:"Genuine leather tote with gold hardware and a roomy interior. Gently used and authenticated."},
+  {id:47,category:"listings",title:"Aquarium tank with full setup",description:"Twenty-gallon glass tank with filter, heater, and LED light. A complete starter home for freshwater fish."},
+  {id:48,category:"listings",title:"Snowboard with bindings",description:"All-mountain snowboard in great condition with adjustable bindings. Ready to hit the slopes this season."},
+  {id:49,category:"news",title:"Local news: City council approves new park",description:"The council voted to fund a riverside green space with walking trails and a playground. Construction begins next spring."},
+  {id:50,category:"news",title:"Affordable housing initiative gains support",description:"A new city program offers grants to build low-cost apartments downtown. Officials hope to ease the rental crunch."},
+  {id:51,category:"news",title:"Tech firm opens campus, adds 500 jobs",description:"A growing software company will open a regional office, bringing hundreds of engineering roles to the area."},
+  {id:52,category:"news",title:"Farmers market returns for the season",description:"The weekly downtown market reopens with local produce, baked goods, and crafts. Vendors expect record crowds."},
+  {id:53,category:"news",title:"School district unveils new science wing",description:"The high school cut the ribbon on a modern lab building funded by a recent bond. Students start classes there Monday."},
+  {id:54,category:"news",title:"Severe storm prompts weekend flood warnings",description:"Forecasters warn of heavy rain and rising rivers across the region. Residents are urged to prepare and avoid travel."},
+  {id:55,category:"furniture",title:"Glass-top modern console table",description:"Sleek entryway table with a tempered glass surface and chrome frame. A minimalist accent for a hallway."},
+  {id:56,category:"furniture",title:"Plush sectional sofa, like new",description:"Spacious L-shaped couch in beige with deep cushions. Comfortably seats the whole family for movie night."},
+  {id:57,category:"electronics",title:"Entry-level digital piano keyboard",description:"88 weighted keys with built-in speakers and headphone output. A budget instrument for learning at home."},
+  {id:58,category:"electronics",title:"Wi-Fi mesh router system",description:"Three-node mesh network that blankets a large home in fast, reliable Wi-Fi. Easy app-based setup."},
+  {id:59,category:"furniture",title:"Adjustable wooden bar stools, pair",description:"Two swivel stools in solid wood with a brushed metal base. Perfect height for a kitchen island."},
+  {id:60,category:"electronics",title:"Compact air purifier with HEPA filter",description:"Quiet purifier that clears dust, smoke, and allergens from a bedroom. Indicator shows air quality in real time."}
+];
+const CAT_COLORS = {
+  furniture:'bg-amber-100 text-amber-800', electronics:'bg-sky-100 text-sky-800',
+  listings:'bg-emerald-100 text-emerald-800', news:'bg-rose-100 text-rose-800',
+};
+
+/* DOM refs */
+const $ = (id) => document.getElementById(id);
+const loadingEl = $('loading'), appEl = $('app'), resultsEl = $('results');
+
+/* ---------------------------------------------------------------------------
+   STEP 1 — embed: lazy-load the model, then embed every listing ONCE.
+--------------------------------------------------------------------------- */
+let extractor = null;
+let docVectors = [];      // one 384-dim unit vector per item ("the store")
+const fileProgress = {};  // download progress per file, for the loading bar
+
+function onProgress(p){
+  if (p.status === 'progress' && p.file) {
+    fileProgress[p.file] = p.progress || 0;
+    const vals = Object.values(fileProgress);
+    const overall = vals.reduce((a, b) => a + b, 0) / vals.length;
+    $('loadingBar').style.width = overall.toFixed(0) + '%';
+    $('loadingPct').textContent = overall.toFixed(0) + '%';
+    $('loadingMsg').textContent = 'Downloading the embedding model…';
+  } else if (p.status === 'ready' || p.status === 'done') {
+    $('loadingMsg').textContent = 'Model ready — embedding the catalog…';
+  }
+}
+
+// Mean-pooled, L2-normalized embeddings → cosine similarity is a plain dot product.
+async function embed(texts){
+  const out = await extractor(texts, { pooling: 'mean', normalize: true });
+  return out.tolist();
+}
+
+async function boot(){
+  try {
+    extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', { progress_callback: onProgress });
+    $('loadingBar').style.width = '100%'; $('loadingPct').textContent = '100%';
+    $('loadingMsg').textContent = 'Embedding the catalog…';
+
+    const t0 = performance.now();
+    docVectors = await embed(ITEMS.map((it) => it.title + '. ' + it.description));
+    const t1 = performance.now();
+
+    loadingEl.classList.add('hidden');
+    appEl.classList.remove('hidden');
+    $('meta').textContent = `Embedded ${ITEMS.length} listings in ${(t1 - t0).toFixed(0)}ms · ${docVectors[0].length}-dim vectors, all computed locally.`;
+    runSearch('cheap couch'); // a friendly default so the page isn't empty
+  } catch (err) {
+    $('loadingMsg').textContent = 'Could not load the model — check your connection and refresh.';
+    $('loadingPct').textContent = '⚠️';
+    console.error(err);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   STEP 2 — search: embed the query, cosine vs every stored vector, rank.
+--------------------------------------------------------------------------- */
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+async function runSearch(query){
+  query = (query || '').trim();
+  if (!query) return;
+  $('q').value = query;
+  resultsEl.innerHTML = '<p class="text-sm text-slate-400 py-6 text-center">Embedding your query…</p>';
+
+  const t0 = performance.now();
+  const [qVec] = await embed([query]);                 // 1 forward pass for the query
+  const ranked = ITEMS
+    .map((it, i) => ({ it, score: dot(qVec, docVectors[i]) })) // cosine (both normalized)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+  const ms = (performance.now() - t0).toFixed(0);
+
+  $('meta').textContent = `Query embedded + ranked against ${ITEMS.length} listings in ${ms}ms — a real neural model, no server.`;
+  resultsEl.innerHTML = ranked.map((r, i) => {
+    const pct = Math.round(r.score * 100);
+    return `
+      <div class="fade bg-white rounded-xl border border-slate-200 shadow-sm p-4" style="animation-delay:${i * 50}ms">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="flex-none w-7 h-7 rounded-full bg-slate-900 text-white text-sm font-bold grid place-items-center">${i + 1}</span>
+            <h3 class="font-semibold text-slate-800 truncate">${r.it.title}</h3>
+          </div>
+          <div class="flex-none text-right">
+            <div class="text-lg font-extrabold text-emerald-600 tabular-nums">${pct}%</div>
+            <div class="text-[10px] uppercase tracking-wide text-slate-400">similarity</div>
+          </div>
+        </div>
+        <p class="text-sm text-slate-600 mt-2 leading-relaxed">${r.it.description}</p>
+        <div class="mt-3 h-2.5 rounded-full bg-slate-200 overflow-hidden">
+          <div class="bar h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style="width:${pct}%"></div>
+        </div>
+        <div class="mt-3">
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded-full ${CAT_COLORS[r.it.category]}">${r.it.category}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* wire up UI */
+$('go').addEventListener('click', () => runSearch($('q').value));
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch($('q').value); });
+document.querySelectorAll('.ex').forEach((el) => el.addEventListener('click', () => runSearch(el.textContent)));
+
+boot();
+</script>
+</body>
+</html>
