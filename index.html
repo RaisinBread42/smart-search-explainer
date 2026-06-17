@@ -48,6 +48,12 @@
   <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   <!-- Babel for in-browser JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Newer @babel/standalone defaults to the automatic JSX runtime, which emits
+    // `import { jsx } from "react/jsx-runtime"` — invalid in a plain <script> with
+    // no bundler. Force the classic runtime so JSX compiles to React.createElement.
+    Babel.registerPreset('react-classic', { presets: [[Babel.availablePresets.react, { runtime: 'classic' }]] });
+  </script>
 
   <style>
     html, body, #root { height: 100%; }
@@ -69,7 +75,7 @@
 <body class="bg-slate-100">
   <div id="root"></div>
 
-  <script type="text/babel" data-presets="react">
+  <script type="text/babel" data-presets="react-classic">
 const { useState, useEffect, useMemo, useRef } = React;
 const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList, Cell } = Recharts;
 
